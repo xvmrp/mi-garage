@@ -306,8 +306,12 @@ class Grilla {
     this.opciones = opciones;
     this.ids = [];
     this.n = 0;
-    new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) this.mas(); }, { rootMargin: "1200px" })
-      .observe(centinela);
+    // El contenido se desplaza dentro de <main id="contenido">, no la página completa
+    new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) this.mas(); },
+      { root: $("#contenido"), rootMargin: "0px 0px 1200px 0px" }).observe(centinela);
+  }
+  visible() {
+    return !!this.grilla.closest(".vista")?.classList.contains("activa");
   }
   mostrar(ids) {
     this.ids = ids;
@@ -316,14 +320,20 @@ class Grilla {
     this.mas();
   }
   mas() {
-    if (this.n >= this.ids.length || this.grilla.offsetParent === null) return;
+    if (this.n >= this.ids.length || !this.visible()) return;
     const tramo = this.ids.slice(this.n, this.n + LOTE);
     this.n += tramo.length;
     this.grilla.insertAdjacentHTML("beforeend", tramo.map((id) => tarjetaHTML(id, this.opciones)).join(""));
     if (this.opciones.fotosPropias) cargarFotosPropias(this.grilla);
     requestAnimationFrame(() => {
-      if (this.centinela.getBoundingClientRect().top < innerHeight + 1200) this.mas();
+      const abajo = $("#contenido").getBoundingClientRect().bottom;
+      if (this.centinela.getBoundingClientRect().top < abajo + 1200) this.mas();
     });
+  }
+  /** Carga tandas hasta que el contenido tenga al menos `alto` px (para volver a donde ibas). */
+  rellenarHasta(alto) {
+    const cont = $("#contenido");
+    while (this.n < this.ids.length && this.visible() && cont.scrollHeight < alto) this.mas();
   }
   actualizar(id, sigueEnLista = true) {
     const selector = `.tarjeta[data-id="${CSS.escape(id)}"]`;
@@ -734,7 +744,7 @@ function abrirVisor(fotos, inicio) {
     <div class="visor-carrusel" id="visor-carrusel">
       ${fotos.map((f) => `<figure class="visor-diapo">
         <img src="${esc(f.grande)}" alt="${esc(f.tipo)}" referrerpolicy="no-referrer">
-        <figcaption>${esc(f.tipo)}</figcaption></figure>`).join("")}
+        <figcaption>${esc(f.tipo)} · toca para acercar</figcaption></figure>`).join("")}
     </div>
     <button type="button" class="cerrar visor-cerrar" data-cerrar aria-label="Cerrar">×</button>`;
   visor.showModal();
@@ -878,7 +888,14 @@ function exportarCSV() {
 
 // ------------------------------------------------------------------ navegación
 
+// Cada pestaña recuerda hasta dónde bajaste, como en una app nativa
+const posiciones = {};
+let vistaMostrada = null;
+
 function mostrarVista(vista) {
+  const cont = $("#contenido");
+  if (vistaMostrada) posiciones[vistaMostrada] = cont.scrollTop;
+  vistaMostrada = vista;
   estado.vista = vista;
   ajustes.escribir("vista", vista);
   $$(".vista").forEach((s) => s.classList.toggle("activa", s.id === `vista-${vista}`));
@@ -891,7 +908,32 @@ function mostrarVista(vista) {
   if (vista === "coleccion") renderColeccion();
   if (vista === "deseos") renderDeseos();
   if (vista === "estadisticas") renderEstadisticas();
-  window.scrollTo({ top: 0 });
+  const destino = posiciones[vista] || 0;
+  ({ catalogo: grillaCatalogo, coleccion: grillaColeccion, deseos: grillaDeseos })[vista]
+    ?.rellenarHasta(destino + cont.clientHeight);
+  cont.scrollTop = destino;
+}
+
+/** Tocar la pestaña en la que ya estás vuelve arriba (como en iPhone). */
+function irArriba() {
+  const c = $("#contenido");
+  const inicio = c.scrollTop;
+  if (!inicio) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { c.scrollTop = 0; return; }
+  // Animación propia: el "smooth" del navegador a veces se corta
+  const t0 = performance.now(), duracion = Math.min(450, 220 + inicio / 25);
+  const paso = (t) => {
+    const p = Math.min(1, (t - t0) / duracion);
+    c.scrollTop = inicio * Math.pow(1 - p, 3);
+    if (p < 1) requestAnimationFrame(paso);
+  };
+  requestAnimationFrame(paso);
+}
+
+/** Al cambiar la búsqueda o un filtro, los resultados parten desde arriba. */
+function filtrarDesdeArriba() {
+  filtrarCatalogo();
+  $("#contenido").scrollTop = 0;
 }
 
 function irAlCatalogo({ linea = "", anio = "", est = "", especial = "" } = {}) {
@@ -900,8 +942,9 @@ function irAlCatalogo({ linea = "", anio = "", est = "", especial = "" } = {}) {
   $("#f-anio").value = anio;
   $("#f-estado").value = est;
   marcarEspecial(especial);
+  posiciones.catalogo = 0;
   mostrarVista("catalogo");
-  filtrarCatalogo();
+  filtrarDesdeArriba();
 }
 
 function enGrilla(e) {
@@ -915,13 +958,36 @@ function enGrilla(e) {
 }
 
 function conectarEventos() {
-  $$(".pestanas button").forEach((b) => b.addEventListener("click", () => mostrarVista(b.dataset.vista)));
+  $$(".pestanas button").forEach((b) => b.addEventListener("click", () => {
+    if (b.dataset.vista === vistaMostrada) irArriba();
+    else mostrarVista(b.dataset.vista);
+  }));
   $$("[data-ir]").forEach((b) => b.addEventListener("click", () => mostrarVista(b.dataset.ir)));
 
   let espera;
-  $("#buscar").addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(filtrarCatalogo, 140); });
-  ["#f-anio", "#f-linea", "#f-estado", "#f-orden"].forEach((s) => $(s).addEventListener("change", filtrarCatalogo));
-  $$('input[name="especial"]').forEach((r) => r.addEventListener("change", filtrarCatalogo));
+  $("#buscar").addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(filtrarDesdeArriba, 140); });
+  ["#f-anio", "#f-linea", "#f-estado", "#f-orden"].forEach((s) => $(s).addEventListener("change", filtrarDesdeArriba));
+  $$('input[name="especial"]').forEach((r) => r.addEventListener("change", filtrarDesdeArriba));
+
+  // iPhone: bloquear el zoom con dos dedos (Safari no respeta siempre "user-scalable=no")
+  for (const tipo of ["gesturestart", "gesturechange"]) {
+    document.addEventListener(tipo, (e) => e.preventDefault(), { passive: false });
+  }
+
+  // Visor: tocar la foto la acerca (y se recorre con el dedo); tocar de nuevo la aleja
+  $("#visor").addEventListener("click", (e) => {
+    const img = e.target.closest(".visor-diapo img");
+    if (!img) return;
+    const fig = img.closest(".visor-diapo");
+    const r = img.getBoundingClientRect();
+    // Punto tocado dentro de la foto (al centro si la foto aún no termina de cargar)
+    const fx = r.width ? (e.clientX - r.left) / r.width : 0.5;
+    const fy = r.height ? (e.clientY - r.top) / r.height : 0.5;
+    if (fig.classList.toggle("zoom")) {
+      fig.scrollLeft = fx * fig.scrollWidth - fig.clientWidth / 2;
+      fig.scrollTop = fy * fig.scrollHeight - fig.clientHeight / 2;
+    }
+  });
 
   let esperaCol;
   $("#buscar-coleccion").addEventListener("input", () => { clearTimeout(esperaCol); esperaCol = setTimeout(renderColeccion, 140); });
@@ -1056,7 +1122,9 @@ async function instalar() {
 
 function mostrarBienvenida() {
   actualizarConsejoInstalar();
-  $("#bienvenida").showModal();
+  const d = $("#bienvenida");
+  d.showModal();
+  d.scrollTop = 0; // que parta arriba aunque el foco quede en "Empezar"
 }
 
 // ------------------------------------------------------------------ inicio

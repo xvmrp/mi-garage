@@ -75,7 +75,8 @@ async function primeroLaCache(peticion) {
 async function primeroLaRed(peticion) {
   const cache = await caches.open(CACHE_APP);
   try {
-    const resp = await fetch(peticion);
+    // "no-cache": siempre preguntar al servidor, para no ver una copia vieja mientras se edita
+    const resp = await fetch(peticion, { cache: "no-cache" });
     if (resp.ok) cache.put(peticion, resp.clone());
     return resp;
   } catch {

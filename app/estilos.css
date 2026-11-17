@@ -48,14 +48,30 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* La app queda "fija" como una app nativa: la página completa no se arrastra, no rebota
+   y no hace zoom. Solo se desplaza el contenido del medio (<main>). */
+html {
+  -webkit-text-size-adjust: 100%;
+  height: 100%; overflow: hidden; overscroll-behavior: none;
+}
 
 body {
   margin: 0;
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden; overscroll-behavior: none;
   background: var(--fondo);
   color: var(--texto);
   font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  padding-bottom: calc(var(--nav-alto) + env(safe-area-inset-bottom) + 16px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sin zoom por doble toque ni pellizco (el visor de fotos tiene su propio zoom) */
+* { touch-action: pan-x pan-y; }
+
+/* Que tocar y mantener no seleccione texto en botones y tarjetas */
+button, .pestanas, .tarjeta, .chips-filtro, .chips, .puntos, .progreso, .aviso {
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 
 a { color: var(--acento); }
@@ -65,9 +81,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Barra superior y navegación ---------- */
 .barra {
-  position: sticky; top: 0; z-index: 20;
+  flex: none; position: relative; z-index: 20;
   background: var(--barra); color: var(--barra-texto);
-  padding-top: env(safe-area-inset-top);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 .barra-interior {
   max-width: 1200px; margin: 0 auto; padding: 10px 16px;
@@ -82,7 +98,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--barra); border-top: 1px solid #2a2a30;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 .pestanas button {
   background: none; border: 0; color: var(--barra-texto-2);
@@ -93,7 +109,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pestanas button.activa { color: #ff8a47; }
 
 @media (min-width: 820px) {
-  body { padding-bottom: 32px; }
   .pestanas {
     position: static; display: flex; gap: 4px; border: 0; background: none; padding: 0;
   }
@@ -106,7 +121,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 
 /* ---------- Vistas ---------- */
-main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+main {
+  flex: 1; min-height: 0;
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--nav-alto) + env(safe-area-inset-bottom)); /* espacio para la barra de abajo */
+}
+.contenido-interior {
+  max-width: 1200px; margin: 0 auto;
+  padding: 16px max(16px, env(safe-area-inset-right)) 28px max(16px, env(safe-area-inset-left));
+}
+@media (min-width: 820px) { main { padding-bottom: 0; } }
 .vista { display: none; }
 .vista.activa { display: block; }
 
@@ -149,7 +174,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .foto .sin-foto { color: #9b98a1; font-size: 12px; text-align: center; padding: 8px; }
 .foto .sin-foto svg { display: block; margin: 0 auto 4px; width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .info { padding: 9px 10px 46px; }
-.info h3 { margin: 0 0 3px; font-size: 14px; line-height: 1.25; font-weight: 650; }
+.info h3 { margin: 0 0 3px; font-size: 14px; line-height: 1.25; font-weight: 650; overflow-wrap: anywhere; }
+.info p { overflow-wrap: anywhere; }
 .info p { margin: 0; font-size: 12px; color: var(--texto-2); line-height: 1.35; }
 .info .codigos { color: var(--texto-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
 
@@ -179,7 +205,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .chip {
   display: inline-block; font-size: 10.5px; font-weight: 650; line-height: 1.5;
   border-radius: 6px; padding: 1px 6px; letter-spacing: .2px; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
 }
+.chips-ficha .chip { white-space: normal; }
 .e-linea { background: rgba(22, 22, 26, .78); color: #fff; font-weight: 500; }
 .e-th { background: #15803d; color: #fff; }
 .e-sth { background: linear-gradient(135deg, #f8dc7a, #d6a21e); color: #2b1d00; }
@@ -189,10 +217,14 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
 .chips-filtro {
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px;
   -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+  scroll-padding-inline: 16px; /* que el primer botón no quede pegado al borde */
 }
 .chips-filtro::-webkit-scrollbar { display: none; }
-.chips-filtro label { cursor: pointer; flex: none; scroll-snap-align: start; }
-.chips-filtro input { position: absolute; opacity: 0; pointer-events: none; }
+/* El radio invisible queda dentro de su etiqueta (si no, se sale de la pantalla y la estira) */
+.chips-filtro label { cursor: pointer; flex: none; scroll-snap-align: start; position: relative; }
+.chips-filtro input, .chips input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none;
+}
 .chips-filtro span {
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   padding: 7px 12px; border-radius: 999px; border: 1px solid var(--borde);
@@ -308,7 +340,11 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
   flex: 0 0 100%; margin: 0; position: relative; scroll-snap-align: center;
   display: flex; align-items: center; justify-content: center;
 }
-.visor-diapo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-diapo img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+/* Zoom propio del visor: tocar la foto la agranda y se recorre con el dedo */
+.visor-diapo.zoom { display: flex; overflow: auto; overscroll-behavior: contain; }
+.visor-diapo.zoom img { flex: none; margin: auto; max-width: none; max-height: none; width: 250%; cursor: zoom-out; }
+.visor-diapo.zoom figcaption { display: none; }
 .visor-diapo figcaption { left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
 .visor-diapo .sin-foto { color: #aaa; }
 .visor-cerrar {
@@ -359,7 +395,6 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
   dialog[open]:not(.visor):not(.bienvenida) { animation: subir .3s cubic-bezier(.2, .8, .2, 1); }
 }
 .visor[open] { animation: fundido .18s ease-out; }
-.vista.activa { animation: fundido .18s ease-out; }
 .cantidad-insignia.pulso { animation: pop .34s ease-out; }
 .tarjeta { transition: transform .15s ease; }
 .tarjeta:has(.tarjeta-abrir:active) { transform: scale(.985); }
@@ -368,7 +403,9 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 }
 .datos { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 14px 0 6px; font-size: 14px; }
 .datos dt { color: var(--texto-2); }
-.datos dd { margin: 0; }
+.datos dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.dialogo-cabecera > div { min-width: 0; }
+.dialogo-cabecera h2 { overflow-wrap: anywhere; }
 .wiki-link { display: inline-block; font-size: 13.5px; margin: 4px 0 6px; }
 
 .registro {
@@ -383,8 +420,7 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 .contador output { min-width: 34px; text-align: center; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .contador .etq { color: var(--texto-2); font-size: 13px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-.chips label { cursor: pointer; }
-.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips label { cursor: pointer; position: relative; }
 .chips span {
   display: inline-block; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--borde);
   font-size: 13.5px; background: var(--superficie);
