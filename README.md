@@ -1,16 +1,23 @@
 # Mi Garage: registro de mi colección Hot Wheels
 
 App web para registrar los Hot Wheels que vas comprando. Funciona en el PC y en el celular,
-se puede instalar como app y funciona sin internet (las fotos del catálogo sí necesitan conexión).
+se puede instalar como app y funciona sin internet.
+
+**Ábrela aquí: https://xvmrp.github.io/mi-garage/**
 
 - **Catálogo**: 15.282 autos de 1968 a 2027 sacados de la [Hot Wheels Wiki](https://hotwheels.fandom.com/):
   Mainline, Car Culture, Team Transport, Boulevard, Pop Culture, 5-Packs y Multi-Packs.
   Puedes buscar por nombre, Toy # (el código que trae el blíster por detrás), serie o color.
+- **Cacería**: insignias y filtros para **Treasure Hunts**, **Super Treasure Hunts**, **modelos nuevos**
+  del año y **exclusivos de tienda** (Target, Kroger, Dollar General, Dollar Tree).
 - **Mi colección**: toca **+** para agregar un auto. En su ficha anotas cantidad, si está en blíster
-  o suelto, la fecha, el precio, dónde lo compraste, notas y tu propia foto.
+  o suelto, la fecha, el precio, dónde lo compraste, notas y tu propia foto. Las fotos se deslizan
+  con el dedo y se ven en grande al tocarlas.
 - **Deseos**: toca ♥ para guardar los que andas buscando.
-- **Resumen**: cuántos modelos tienes, cuánto has invertido y tu avance por línea y por año.
-- **Ajustes**: respaldo, exportar a Excel y moneda.
+- **Resumen**: cuántos modelos tienes, cuánto has invertido y tu avance por línea, por año y en la cacería.
+- **Ajustes**: respaldo, exportar a Excel, moneda y la guía de bienvenida.
+- **Siempre al día**: el catálogo se actualiza solo cada semana, y cuando hay una versión nueva
+  la app avisa con un botón **Actualizar**. Las fotos que ya viste quedan guardadas para verlas sin internet.
 
 ## Usarla en el PC
 
@@ -38,7 +45,8 @@ El repositorio ya trae una automatización (`.github/workflows/publicar.yml`) qu
    (porque Pages aún no estaba activado), toca **Re-run all jobs**.
 
 Lo único que se publica es la app y el catálogo; tu colección nunca sale de tu dispositivo.
-Para publicar cambios después: `git add -A`, `git commit -m "..."` y `git push`.
+Para publicar cambios después: `git pull` (trae los catálogos que GitHub actualizó solo),
+`git add -A`, `git commit -m "..."` y `git push`.
 
 ## Instalarla en el iPhone
 
@@ -71,10 +79,17 @@ En el propio navegador de cada dispositivo (IndexedDB). Eso significa que:
 
 ## Actualizar el catálogo
 
-Cada tanto salen autos nuevos. Haz doble clic en **`actualizar-catalogo.bat`**: descarga las
-listas de nuevo desde la wiki (tarda unos minutos) y regenera `app/datos/catalogo.json`.
-Tu colección no se toca. Si la publicaste en GitHub, sube el cambio con `git add -A`,
-`git commit -m "Actualizar catálogo"` y `git push`.
+**Es automático.** Cada lunes, GitHub ejecuta `.github/workflows/actualizar-catalogo.yml`: descarga
+las listas de la wiki y, si hay autos nuevos o cambios, guarda el catálogo y publica la app.
+Para forzarlo en cualquier momento: pestaña **Actions** del repositorio → **Actualizar catálogo** →
+**Run workflow**.
+
+> GitHub pausa las tareas programadas de un repositorio que pasa 60 días sin actividad. Si eso pasa,
+> te llega un correo; actívala de nuevo desde la pestaña Actions.
+
+Si quieres actualizarlo desde tu PC: doble clic en **`actualizar-catalogo.bat`** y luego sube el cambio
+con `git pull`, `git add -A`, `git commit -m "Actualizar catálogo"` y `git push`.
+Tu colección nunca se toca: solo cambia la lista de autos disponibles.
 
 También puedes ejecutar el importador a mano:
 
@@ -95,6 +110,8 @@ python importador/importar.py --desde 2020 --hasta 2027
 | `importador/importar.py` | Lee la wiki y genera el catálogo (solo Python estándar) |
 | `importador/cache/` | Copia de las páginas descargadas de la wiki (no se sube a GitHub) |
 | `.github/workflows/publicar.yml` | Publica `app/` en GitHub Pages en cada push |
+| `.github/workflows/actualizar-catalogo.yml` | Actualiza el catálogo cada lunes y lo publica |
+| `herramientas/generar_imagenes.py` | Genera los íconos y las pantallas de arranque del iPhone |
 
 ## Créditos
 

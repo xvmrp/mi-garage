@@ -44,6 +44,19 @@ FUENTES = [
     ("{y} Multi-Pack Exclusives", "Multi-Packs", False),
 ]
 
+# Páginas que no agregan autos, sino que marcan autos del Mainline del mismo año
+# (se buscan por Toy #). "th" se convierte en "sth" en las secciones de Super Treasure Hunts.
+MARCADORES = [
+    ("{y} Treasure Hunts Series", "th"),
+    ("{y} New Models", "nuevo"),
+    ("{y} First Editions", "nuevo"),
+]
+
+# Plantillas de la wiki que indican exclusivos de tienda u otras marcas
+PLANTILLAS_ETIQUETA = {"TG": "tg", "KR": "kr", "DG": "dg", "DT": "dt", "NIM": "nim"}
+RE_PLANTILLA_ETIQUETA = re.compile(r"\{\{\s*(" + "|".join(PLANTILLAS_ETIQUETA) + r")\s*(?:\||\}\})")
+RE_NUEVO = re.compile(r"New for \d{4}|New Models?\b|First Editions?\b", re.I)
+
 
 # --------------------------------------------------------------------------- #
 # Descarga
@@ -463,6 +476,9 @@ def items_de_pagina(titulo, wikitext, anio, linea, agrupar):
             fotos = archivos(reg.get("foto", "")) or archivos(nombre_wt)
             fotos2 = archivos(reg.get("foto2", ""))
             toy = limpiar(reg.get("toy", "")).replace("\n", " ").strip()
+            etiquetas = {PLANTILLAS_ETIQUETA[m] for m in RE_PLANTILLA_ETIQUETA.findall(" ".join(fila))}
+            if linea == "Mainline" and RE_NUEVO.search(" ".join([serie] + extras)):
+                etiquetas.add("nuevo")
             item = {
                 "y": anio,
                 "l": linea,
@@ -477,6 +493,7 @@ def items_de_pagina(titulo, wikitext, anio, linea, agrupar):
                 "p": ruta_imagen(fotos[0]) if fotos else None,
                 "p2": ruta_imagen(fotos2[0]) if fotos2 else None,
                 "w": url_wiki(primer_enlace(nombre_wt)),
+                "e": etiquetas,
                 "src": titulo,
             }
             if agrupar and previo and toy and previo["t"] == toy and previo["sec"] == item["sec"]:
@@ -494,9 +511,53 @@ def items_de_pagina(titulo, wikitext, anio, linea, agrupar):
                 "y": anio, "l": linea, "n": g["nombre"], "t": "", "c": "",
                 "s": g["seccion"], "sn": "", "sec": g["seccion"], "co": "", "no": "",
                 "p": ruta_imagen(g["archivo"]), "p2": None,
-                "w": url_wiki(primer_enlace(g["wt"])), "src": titulo,
+                "w": url_wiki(primer_enlace(g["wt"])), "e": set(), "src": titulo,
             })
     return items
+
+
+def aplicar_marcadores(items, titulo, wikitext, anio, etiqueta):
+    """Marca autos del Mainline de `anio` según una página de Treasure Hunts / New Models.
+
+    Devuelve (marcados, sin_coincidencia)."""
+    del_anio = [i for i in items if i["y"] == anio and i["l"] == "Mainline"]
+    por_toy, por_casting = {}, {}
+    for it in del_anio:
+        if it["t"]:
+            por_toy.setdefault(it["t"], []).append(it)
+        if it["w"]:
+            por_casting.setdefault(it["w"], []).append(it)
+
+    marcados, sin = 0, 0
+    for tabla in leer_tablas(wikitext):
+        encabezado, filas = expandir_filas(tabla["filas"])
+        if not encabezado:
+            continue
+        campos = [campo_de_encabezado(h) for h in encabezado]
+        if "nombre" not in campos:
+            continue
+        seccion = tabla["seccion"]
+        tag = etiqueta
+        if etiqueta == "th" and re.search(r"super|\$", seccion, re.I):
+            tag = "sth"
+        for fila in filas:
+            reg = {campos[i]: v for i, v in enumerate(fila) if i < len(campos) and campos[i]}
+            toy = limpiar(reg.get("toy", "")).replace("\n", " ").strip()
+            candidatos = por_toy.get(toy, []) if toy else []
+            if not candidatos and etiqueta == "nuevo":
+                # Modelo nuevo: todas las versiones del molde de ese año
+                candidatos = por_casting.get(url_wiki(primer_enlace(reg.get("nombre", ""))), [])
+            if not candidatos:
+                sin += 1
+                continue
+            for it in candidatos:
+                if tag == "sth":
+                    it["e"].discard("th")
+                elif tag == "th" and "sth" in it["e"]:
+                    continue
+                it["e"].add(tag)
+            marcados += 1
+    return marcados, sin
 
 
 def asignar_ids(items):
@@ -510,7 +571,10 @@ def asignar_ids(items):
 
 def compactar(it):
     # "src" solo sirve para calcular el id; no hace falta en la app
-    return {k: v for k, v in it.items() if v not in (None, "", []) and k != "src"}
+    salida = {k: v for k, v in it.items() if v not in (None, "", [], set()) and k != "src"}
+    if "e" in salida:
+        salida["e"] = sorted(salida["e"])
+    return salida
 
 
 def main():
@@ -522,12 +586,16 @@ def main():
     args = ap.parse_args()
 
     pedidos = []  # (titulo, anio, linea, agrupar)
+    marcadores = []  # (titulo, anio, etiqueta)
     for anio in range(args.desde, args.hasta + 1):
         for patron, linea, agrupar in FUENTES:
             pedidos.append((patron.format(y=anio), anio, linea, agrupar))
+        for patron, etiqueta in MARCADORES:
+            marcadores.append((patron.format(y=anio), anio, etiqueta))
 
-    print(f"Buscando {len(pedidos)} páginas posibles en la wiki ({args.desde}-{args.hasta})...")
-    textos = descargar_paginas([p[0] for p in pedidos], args.actualizar)
+    titulos = [p[0] for p in pedidos] + [m[0] for m in marcadores]
+    print(f"Buscando {len(titulos)} páginas posibles en la wiki ({args.desde}-{args.hasta})...")
+    textos = descargar_paginas(titulos, args.actualizar)
     print(f"Páginas encontradas: {len(textos)}")
 
     items, resumen = [], {}
@@ -541,7 +609,26 @@ def main():
         if not nuevos:
             print(f"  (sin autos reconocibles en: {titulo})")
 
+    marcas = {"th": [0, 0], "nuevo": [0, 0]}
+    for titulo, anio, etiqueta in marcadores:
+        if titulo in textos:
+            ok, sin = aplicar_marcadores(items, titulo, textos[titulo], anio, etiqueta)
+            marcas[etiqueta][0] += ok
+            marcas[etiqueta][1] += sin
+
     asignar_ids(items)
+    compactos = [compactar(i) for i in items]
+
+    # Si nada cambió, no tocar el archivo (así GitHub no publica una versión nueva sin motivo)
+    if SALIDA.exists():
+        try:
+            anterior = json.loads(SALIDA.read_text(encoding="utf-8"))
+            if anterior.get("items") == compactos:
+                print(f"\nEl catálogo no cambió ({len(items)} autos). No se modificó {SALIDA.name}.")
+                return
+        except (ValueError, OSError):
+            pass
+
     catalogo = {
         "generado": dt.datetime.now().isoformat(timespec="seconds"),
         "fuente": "Hot Wheels Wiki (hotwheels.fandom.com) - texto bajo licencia CC BY-SA",
@@ -549,13 +636,18 @@ def main():
         "wiki": WIKI,
         "total": len(items),
         "lineas": resumen,
-        "items": [compactar(i) for i in items],
+        "items": compactos,
     }
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
     SALIDA.write_text(json.dumps(catalogo, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"\nListo: {len(items)} autos -> {SALIDA}")
     for linea, n in resumen.items():
         print(f"  {linea:15} {n:6}")
+    contar = lambda e: sum(1 for i in compactos if e in i.get("e", []))
+    print(f"  Treasure Hunts: {contar('th')}  Super Treasure Hunts: {contar('sth')}  "
+          f"modelos nuevos: {contar('nuevo')}  (filas sin coincidencia: TH {marcas['th'][1]}, "
+          f"nuevos {marcas['nuevo'][1]})")
+    print("  Exclusivos: " + ", ".join(f"{e}={contar(e)}" for e in ("tg", "kr", "dg", "dt", "nim")))
 
 
 if __name__ == "__main__":

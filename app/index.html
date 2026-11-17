@@ -9,6 +9,19 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="iconos/icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+  <!-- Pantallas de arranque del iPhone (generadas con herramientas/generar_imagenes.py) -->
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-750x1334.png" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1242x2208.png" media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1125x2436.png" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-828x1792.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1242x2688.png" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1170x2532.png" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1284x2778.png" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1179x2556.png" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1290x2796.png" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1206x2622.png" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1320x2868.png" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+  <link rel="apple-touch-startup-image" href="iconos/arranque/arranque-1260x2736.png" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -55,6 +68,13 @@
     <section id="vista-catalogo" class="vista activa" aria-label="Catálogo">
       <div class="herramientas">
         <input type="search" id="buscar" placeholder="Buscar nombre, Toy #, serie o color…" autocomplete="off" aria-label="Buscar en el catálogo">
+        <div class="chips-filtro" role="radiogroup" aria-label="Tipo de auto">
+          <label><input type="radio" name="especial" value="" checked><span>Todos</span></label>
+          <label><input type="radio" name="especial" value="th"><span><i class="punto e-th"></i>Treasure Hunt</span></label>
+          <label><input type="radio" name="especial" value="sth"><span><i class="punto e-sth"></i>Super TH</span></label>
+          <label><input type="radio" name="especial" value="nuevo"><span><i class="punto e-nuevo"></i>Modelos nuevos</span></label>
+          <label><input type="radio" name="especial" value="exclusivo"><span><i class="punto e-tienda"></i>Exclusivos de tienda</span></label>
+        </div>
         <div class="filtros">
           <select id="f-anio" aria-label="Año"><option value="">Todos los años</option></select>
           <select id="f-linea" aria-label="Línea"><option value="">Todas las líneas</option></select>
@@ -118,6 +138,11 @@
     <!-- AJUSTES -->
     <section id="vista-ajustes" class="vista" aria-label="Ajustes">
       <div class="panel">
+        <h2>Ayuda</h2>
+        <div class="consejo-instalar" hidden></div>
+        <button type="button" class="boton secundario" id="btn-guia">Ver la guía de bienvenida</button>
+      </div>
+      <div class="panel">
         <h2>Respaldo</h2>
         <p class="ayuda">Tu colección se guarda solo en este navegador. Descarga un respaldo de vez en cuando, y úsalo para pasar tu colección a otro dispositivo.</p>
         <div class="fila-botones">
@@ -148,7 +173,7 @@
       <div class="panel">
         <h2>Catálogo</h2>
         <p class="ayuda" id="info-catalogo"></p>
-        <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Para actualizarlo, ejecuta <code>actualizar-catalogo.bat</code> en tu PC.</p>
+        <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Se actualiza solo cada semana con los autos nuevos. Las fotos que ya viste quedan guardadas para verlas sin internet.</p>
       </div>
       <div class="panel peligro">
         <h2>Zona peligrosa</h2>
@@ -160,6 +185,26 @@
 
   <!-- Ficha de un auto -->
   <dialog id="ficha" aria-labelledby="ficha-titulo"></dialog>
+
+  <!-- Fotos en grande -->
+  <dialog id="visor" class="visor" aria-label="Fotos en grande"></dialog>
+
+  <!-- Bienvenida (primera vez) -->
+  <dialog id="bienvenida" class="bienvenida" aria-labelledby="bienvenida-titulo">
+    <div class="bienvenida-cuerpo">
+      <img src="iconos/icono.svg" width="72" height="72" alt="">
+      <h2 id="bienvenida-titulo">¡Hola! Esto es Mi Garage</h2>
+      <p class="ayuda">Tu colección de Hot Wheels, siempre en el bolsillo.</p>
+      <ol class="pasos">
+        <li><span class="num">1</span><div><strong>Busca</strong> por nombre, serie o por el <b>Toy #</b> que trae el blíster por detrás.</div></li>
+        <li><span class="num">2</span><div>Toca <b class="mini-mas">+</b> para agregarlo a tu colección, o <b>♥</b> si lo andas buscando.</div></li>
+        <li><span class="num">3</span><div>Toca un auto para anotar el <strong>precio</strong>, la tienda y sacarle tu propia foto.</div></li>
+        <li><span class="num">4</span><div>Tu colección se guarda solo en este dispositivo: descarga un <strong>respaldo</strong> de vez en cuando en Ajustes.</div></li>
+      </ol>
+      <div class="consejo-instalar" hidden></div>
+      <button type="button" class="boton grande" data-cerrar>Empezar</button>
+    </div>
+  </dialog>
 
   <!-- Auto personalizado -->
   <dialog id="dialogo-personalizado" aria-labelledby="personalizado-titulo">

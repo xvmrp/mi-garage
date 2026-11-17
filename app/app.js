@@ -11,6 +11,30 @@ const ICONOS = {
   auto: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="16" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M3 16v-4l3-5h9l4 5h2v4"/></svg>',
 };
 
+// Etiquetas que vienen del catálogo (campo "e")
+const ETIQUETAS = {
+  sth: { corto: "Super TH", largo: "Super Treasure Hunt", clase: "e-sth" },
+  th: { corto: "TH", largo: "Treasure Hunt", clase: "e-th" },
+  nuevo: { corto: "Nuevo", largo: "Modelo nuevo del año", clase: "e-nuevo" },
+  nim: { corto: "Nuevo en Mainline", largo: "Nuevo en Mainline (antes solo en premium)", clase: "e-tienda" },
+  tg: { corto: "Target", largo: "Exclusivo de Target (Red Edition)", clase: "e-tienda" },
+  kr: { corto: "Kroger", largo: "Exclusivo de Kroger", clase: "e-tienda" },
+  dg: { corto: "Dollar General", largo: "Exclusivo de Dollar General", clase: "e-tienda" },
+  dt: { corto: "Dollar Tree", largo: "Exclusivo de Dollar Tree / Family Dollar", clase: "e-tienda" },
+};
+const ORDEN_ETIQUETAS = Object.keys(ETIQUETAS);
+const EXCLUSIVOS = ["tg", "kr", "dg", "dt"];
+const ESPECIALES = [
+  { valor: "th", nombre: "Treasure Hunts" },
+  { valor: "sth", nombre: "Super Treasure Hunts" },
+  { valor: "nuevo", nombre: "Modelos nuevos" },
+  { valor: "exclusivo", nombre: "Exclusivos de tienda" },
+];
+const etiquetasDe = (d) => (d.e || []).filter((e) => ETIQUETAS[e])
+  .sort((a, b) => ORDEN_ETIQUETAS.indexOf(a) - ORDEN_ETIQUETAS.indexOf(b));
+const cumpleEspecial = (it, esp) =>
+  !esp || (esp === "exclusivo" ? (it.e || []).some((e) => EXCLUSIVOS.includes(e)) : (it.e || []).includes(esp));
+
 const estado = {
   catalogo: [],
   porId: new Map(),
@@ -18,6 +42,7 @@ const estado = {
   meta: null,
   totalesLinea: new Map(),
   totalesAnio: new Map(), // solo Mainline
+  totalesEspecial: new Map(), // th, sth, nuevo, exclusivo
   vista: "catalogo",
   todosLosAnios: false,
 };
@@ -67,19 +92,23 @@ function fmtPrecio(n) {
 }
 
 let temporizadorAviso;
-function avisar(mensaje, { deshacer, accion } = {}) {
+let avisoFijo = false;
+function avisar(mensaje, { deshacer, accion, fijo = false } = {}) {
   const el = $("#aviso");
+  if (avisoFijo && !fijo) return; // no tapar el aviso de versión nueva
+  avisoFijo = fijo;
   if (deshacer) accion = { texto: "Deshacer", fn: deshacer };
   el.innerHTML = esc(mensaje) + (accion ? `<button type="button">${esc(accion.texto)}</button>` : "");
   if (accion) {
     el.querySelector("button").onclick = async () => {
       el.classList.remove("visible");
+      avisoFijo = false;
       await accion.fn();
     };
   }
   el.classList.add("visible");
   clearTimeout(temporizadorAviso);
-  temporizadorAviso = setTimeout(() => el.classList.remove("visible"), accion ? 8000 : 2600);
+  if (!fijo) temporizadorAviso = setTimeout(() => el.classList.remove("visible"), accion ? 8000 : 2600);
 }
 
 // En celulares (sobre todo iPhone con la app instalada) descargar archivos no funciona bien:
@@ -123,7 +152,7 @@ function datosDe(id) {
 
 function refDe(item) {
   const ref = {};
-  for (const k of ["n", "y", "l", "s", "sn", "t", "c", "co", "p", "p2", "sec", "w"]) if (item[k]) ref[k] = item[k];
+  for (const k of ["n", "y", "l", "s", "sn", "t", "c", "co", "p", "p2", "sec", "w", "e"]) if (item[k]) ref[k] = item[k];
   return ref;
 }
 
@@ -236,6 +265,11 @@ function tarjetaHTML(id, { fotosPropias = false } = {}) {
   const deseo = !!reg?.deseo;
   const codigos = [d.c && `#${d.c}`, d.t].filter(Boolean).join(" · ");
   const propia = fotosPropias && reg?.tieneFoto;
+  const chips = [
+    d.l && d.l !== "Mainline" && `<span class="chip e-linea">${esc(d.l)}</span>`,
+    ...etiquetasDe(d).slice(0, 2).map((e) =>
+      `<span class="chip ${ETIQUETAS[e].clase}" title="${esc(ETIQUETAS[e].largo)}">${esc(ETIQUETAS[e].corto)}</span>`),
+  ].filter(Boolean);
   return `<article class="tarjeta${cant ? " tengo" : ""}" data-id="${esc(id)}">
     <button type="button" class="tarjeta-abrir" data-accion="abrir" aria-label="Ver ficha de ${esc(d.n)}">
       <div class="foto"${propia ? " data-foto-propia" : ""}>${fotoHTML(d.p || d.p2)}</div>
@@ -245,7 +279,7 @@ function tarjetaHTML(id, { fotosPropias = false } = {}) {
         ${codigos ? `<p class="codigos">${esc(codigos)}</p>` : ""}
       </div>
     </button>
-    ${d.l && d.l !== "Mainline" ? `<span class="etiqueta-linea">${esc(d.l)}</span>` : ""}
+    ${chips.length ? `<div class="etiquetas">${chips.join("")}</div>` : ""}
     ${cant ? `<span class="cantidad-insignia" title="Tienes ${cant}">×${cant}</span>` : ""}
     <div class="acciones">
       <button type="button" class="btn-redondo btn-deseo${deseo ? " activo" : ""}" data-accion="deseo"
@@ -292,10 +326,12 @@ class Grilla {
     });
   }
   actualizar(id, sigueEnLista = true) {
-    for (const el of $$(`.tarjeta[data-id="${CSS.escape(id)}"]`, this.grilla)) {
+    const selector = `.tarjeta[data-id="${CSS.escape(id)}"]`;
+    for (const el of $$(selector, this.grilla)) {
       if (!sigueEnLista) { el.remove(); continue; }
       el.outerHTML = tarjetaHTML(id, this.opciones);
     }
+    $$(`${selector} .cantidad-insignia`, this.grilla).forEach((b) => b.classList.add("pulso"));
     if (this.opciones.fotosPropias) cargarFotosPropias(this.grilla);
   }
 }
@@ -322,7 +358,13 @@ function leerFiltros() {
     linea: $("#f-linea").value,
     est: $("#f-estado").value,
     orden: $("#f-orden").value,
+    especial: $('input[name="especial"]:checked')?.value || "",
   };
+}
+
+function marcarEspecial(valor) {
+  const radio = $(`input[name="especial"][value="${CSS.escape(valor || "")}"]`) || $('input[name="especial"][value=""]');
+  radio.checked = true;
 }
 
 function filtrarCatalogo() {
@@ -333,6 +375,7 @@ function filtrarCatalogo() {
   const lista = estado.catalogo.filter((it) => {
     if (anio && it.y !== anio) return false;
     if (f.linea && it.l !== f.linea) return false;
+    if (!cumpleEspecial(it, f.especial)) return false;
     if (f.est) {
       const r = estado.coleccion.get(it.id);
       const tiene = (r?.cantidad || 0) > 0;
@@ -363,8 +406,13 @@ function prepararCatalogo(datos) {
   estado.catalogo = datos.items;
   estado.catalogo.forEach((it, i) => {
     it._i = i;
-    it._q = norm([it.n, it.t, it.s, it.sec, it.co, it.l, it.y, it.c && "#" + it.c, it.no].filter(Boolean).join(" "));
+    const etiquetas = etiquetasDe(it).map((e) => `${ETIQUETAS[e].corto} ${ETIQUETAS[e].largo}`);
+    it._q = norm([it.n, it.t, it.s, it.sec, it.co, it.l, it.y, it.c && "#" + it.c, it.no, ...etiquetas]
+      .filter(Boolean).join(" "));
     estado.porId.set(it.id, it);
+    for (const esp of ESPECIALES) {
+      if (cumpleEspecial(it, esp.valor)) estado.totalesEspecial.set(esp.valor, (estado.totalesEspecial.get(esp.valor) || 0) + 1);
+    }
     estado.totalesLinea.set(it.l, (estado.totalesLinea.get(it.l) || 0) + 1);
     if (it.l === "Mainline") estado.totalesAnio.set(it.y, (estado.totalesAnio.get(it.y) || 0) + 1);
   });
@@ -442,6 +490,7 @@ function filaProgreso(nombre, tengo, total, filtro) {
   const pct = total ? (tengo / total) * 100 : 0;
   const pctTxt = pct > 0 && pct < 1 ? "<1" : Math.round(pct);
   return `<button type="button" class="progreso" data-linea="${esc(filtro.linea || "")}" data-anio="${esc(filtro.anio || "")}"
+      data-especial="${esc(filtro.especial || "")}"
       title="${esc(`${nombre}: tienes ${tengo} de ${total} (${pctTxt}%)`)}">
     <span class="nombre">${esc(nombre)}</span>
     <span class="pista"><span class="relleno" style="width:${tengo ? `max(${pct.toFixed(2)}%, 4px)` : "0"}"></span></span>
@@ -451,12 +500,15 @@ function filaProgreso(nombre, tengo, total, filtro) {
 
 function renderEstadisticas() {
   const { modelos, unidades, gasto, deseos } = resumenColeccion();
-  const porLinea = new Map(), porAnio = new Map();
+  const porLinea = new Map(), porAnio = new Map(), porEspecial = new Map();
   let personalizados = 0;
   for (const r of estado.coleccion.values()) {
     if (!(r.cantidad > 0)) continue;
     const it = estado.porId.get(r.id);
     if (!it) { personalizados += 1; continue; }
+    for (const esp of ESPECIALES) {
+      if (cumpleEspecial(it, esp.valor)) porEspecial.set(esp.valor, (porEspecial.get(esp.valor) || 0) + 1);
+    }
     porLinea.set(it.l, (porLinea.get(it.l) || 0) + 1);
     if (it.l === "Mainline") porAnio.set(it.y, (porAnio.get(it.y) || 0) + 1);
   }
@@ -481,6 +533,14 @@ function renderEstadisticas() {
       ${personalizados ? `<p class="ayuda" style="margin:10px 0 0">Además tienes ${plural(personalizados, "auto agregado", "autos agregados")} a mano.</p>` : ""}
     </div>
     <div class="panel">
+      <h2>Cacería</h2>
+      <p class="ayuda">Treasure Hunts, modelos nuevos y exclusivos que tienes.</p>
+      <div class="progresos">
+        ${ESPECIALES.filter((e) => estado.totalesEspecial.get(e.valor)).map((e) =>
+          filaProgreso(e.nombre, porEspecial.get(e.valor) || 0, estado.totalesEspecial.get(e.valor), { especial: e.valor })).join("")}
+      </div>
+    </div>
+    <div class="panel">
       <h2>Mainline por año</h2>
       ${aniosVisibles.length
         ? `<div class="progresos">${aniosVisibles.map((y) =>
@@ -500,10 +560,11 @@ async function abrirFicha(id) {
   const r = copiaRegistro(id);
   const propia = r.tieneFoto ? await urlFotoPropia(id) : null;
   const fotos = [
-    propia && { tipo: "Mi foto", url: propia },
-    d.p && { tipo: "Suelto", url: urlFoto(d.p, 640) },
-    d.p2 && { tipo: "En blíster", url: urlFoto(d.p2, 640) },
+    propia && { tipo: "Mi foto", url: propia, grande: propia },
+    d.p && { tipo: "Suelto", url: urlFoto(d.p, 640), grande: urlFoto(d.p, 1400) },
+    d.p2 && { tipo: "En blíster", url: urlFoto(d.p2, 640), grande: urlFoto(d.p2, 1400) },
   ].filter(Boolean);
+  const etiquetas = etiquetasDe(d);
   const filas = [
     ["Año", d.y], ["Línea", d.l], ["Serie", d.s], ["Nº en la serie", d.sn], ["Nº de colección", d.c],
     ["Toy #", d.t], ["Color", d.co], ["Grupo", d.sec && d.sec !== d.s ? d.sec : ""], ["Notas", d.no],
@@ -517,17 +578,24 @@ async function abrirFicha(id) {
         <div>
           <h2 id="ficha-titulo">${esc(d.n)}</h2>
           <p class="sub">${esc([d.l, textoSerie(d)].filter(Boolean).join(" · "))}</p>
+          ${etiquetas.length ? `<div class="chips-ficha">${etiquetas.map((e) =>
+            `<span class="chip ${ETIQUETAS[e].clase}">${esc(ETIQUETAS[e].largo)}</span>`).join("")}</div>` : ""}
         </div>
         <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">×</button>
       </header>
       <div class="ficha-cuerpo">
-        <div class="ficha-foto" id="ficha-foto">
-          ${fotos.length ? `<img src="${esc(fotos[0].url)}" alt="${esc(fotos[0].tipo)}" referrerpolicy="no-referrer">`
-                         : `<div class="foto"><div class="sin-foto">${ICONOS.auto}Sin foto</div></div>`}
+        <div class="carrusel" id="carrusel">
+          ${fotos.length ? fotos.map((f, i) => `
+            <figure class="diapo">
+              <button type="button" class="diapo-boton" data-ver="${i}" aria-label="Ver en grande: ${esc(f.tipo)}">
+                <img src="${esc(f.url)}" alt="${esc(f.tipo)}" referrerpolicy="no-referrer"${i ? ' loading="lazy"' : ""}>
+              </button>
+              <figcaption>${esc(f.tipo)}</figcaption>
+            </figure>`).join("")
+          : `<div class="diapo"><div class="sin-foto">${ICONOS.auto}Sin foto</div></div>`}
         </div>
-        ${fotos.length > 1 ? `<div class="miniaturas">${fotos.map((f, i) => `
-          <button type="button" data-foto="${i}" class="${i === 0 ? "activa" : ""}" title="${esc(f.tipo)}" aria-label="Ver foto: ${esc(f.tipo)}">
-            <img src="${esc(f.url)}" alt="" referrerpolicy="no-referrer"></button>`).join("")}</div>` : ""}
+        ${fotos.length > 1 ? `<div class="puntos">${fotos.map((f, i) => `
+          <button type="button" data-ir-foto="${i}" class="${i === 0 ? "activa" : ""}" aria-label="Foto ${i + 1}: ${esc(f.tipo)}"></button>`).join("")}</div>` : ""}
         <dl class="datos">${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         ${d.w ? `<a class="wiki-link" href="${esc(WIKI + d.w)}" target="_blank" rel="noopener">Ver en la Hot Wheels Wiki ↗</a>` : ""}
         ${r.personalizado ? `<p><button type="button" class="enlace" data-editar>Editar datos del auto</button></p>` : ""}
@@ -580,10 +648,11 @@ async function abrirFicha(id) {
       $("#f-cantidad").textContent = cantidad;
       if (cantidad > 0 && !form.fecha.value) form.fecha.value = hoyLocal();
       if (cantidad > 0) form.deseo.checked = false;
-    } else if (b.dataset.foto) {
-      const f = fotos[Number(b.dataset.foto)];
-      $("#ficha-foto").innerHTML = `<img src="${esc(f.url)}" alt="${esc(f.tipo)}" referrerpolicy="no-referrer">`;
-      $$(".miniaturas button", form).forEach((x) => x.classList.toggle("activa", x === b));
+    } else if (b.dataset.irFoto) {
+      const c = $("#carrusel");
+      c.scrollTo({ left: Number(b.dataset.irFoto) * c.clientWidth, behavior: "smooth" });
+    } else if (b.dataset.ver) {
+      abrirVisor(fotos, Number(b.dataset.ver));
     } else if (b.hasAttribute("data-quitar-foto")) {
       quitarFoto = true;
       fotoNueva = null;
@@ -648,8 +717,29 @@ async function abrirFicha(id) {
     avisar("Guardado");
   });
 
+  // Puntos del carrusel según la foto visible
+  const carrusel = $("#carrusel");
+  carrusel.addEventListener("scroll", () => {
+    const i = Math.round(carrusel.scrollLeft / Math.max(1, carrusel.clientWidth));
+    $$(".puntos button", form).forEach((x, k) => x.classList.toggle("activa", k === i));
+  }, { passive: true });
+
   dialogo.showModal();
   dialogo.scrollTop = 0;
+}
+
+function abrirVisor(fotos, inicio) {
+  const visor = $("#visor");
+  visor.innerHTML = `
+    <div class="visor-carrusel" id="visor-carrusel">
+      ${fotos.map((f) => `<figure class="visor-diapo">
+        <img src="${esc(f.grande)}" alt="${esc(f.tipo)}" referrerpolicy="no-referrer">
+        <figcaption>${esc(f.tipo)}</figcaption></figure>`).join("")}
+    </div>
+    <button type="button" class="cerrar visor-cerrar" data-cerrar aria-label="Cerrar">×</button>`;
+  visor.showModal();
+  const c = $("#visor-carrusel");
+  c.scrollLeft = inicio * c.clientWidth;
 }
 
 // ------------------------------------------------------------------ auto personalizado
@@ -771,7 +861,7 @@ async function importarRespaldo(archivo) {
 
 function exportarCSV() {
   const columnas = ["Nombre", "Año", "Línea", "Serie", "Nº serie", "Nº colección", "Toy #", "Color", "Cantidad",
-    "Estado", "Fecha compra", "Precio unidad", "Dónde", "Notas", "Lista de deseos"];
+    "Estado", "Fecha compra", "Precio unidad", "Dónde", "Notas", "Lista de deseos", "Especial"];
   const celda = (v) => {
     const s = String(v ?? "");
     return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -780,7 +870,7 @@ function exportarCSV() {
     const d = datosDe(r.id);
     return [d.n, d.y, d.l, d.s || d.sec, d.sn, d.c, d.t, d.co, r.cantidad,
       { blister: "En blíster", suelto: "Suelto" }[r.condicion] || "", r.fecha, r.precio ?? "", r.tienda, r.notas,
-      r.deseo ? "Sí" : ""];
+      r.deseo ? "Sí" : "", etiquetasDe(d).map((e) => ETIQUETAS[e].largo).join(", ")];
   });
   const csv = "﻿" + [columnas, ...filas].map((f) => f.map(celda).join(";")).join("\r\n");
   descargar(`mi-garage-${hoyLocal()}.csv`, csv, "text/csv;charset=utf-8");
@@ -804,11 +894,12 @@ function mostrarVista(vista) {
   window.scrollTo({ top: 0 });
 }
 
-function irAlCatalogo({ linea = "", anio = "", est = "" } = {}) {
+function irAlCatalogo({ linea = "", anio = "", est = "", especial = "" } = {}) {
   $("#buscar").value = "";
   $("#f-linea").value = linea;
   $("#f-anio").value = anio;
   $("#f-estado").value = est;
+  marcarEspecial(especial);
   mostrarVista("catalogo");
   filtrarCatalogo();
 }
@@ -830,6 +921,7 @@ function conectarEventos() {
   let espera;
   $("#buscar").addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(filtrarCatalogo, 140); });
   ["#f-anio", "#f-linea", "#f-estado", "#f-orden"].forEach((s) => $(s).addEventListener("change", filtrarCatalogo));
+  $$('input[name="especial"]').forEach((r) => r.addEventListener("change", filtrarCatalogo));
 
   let esperaCol;
   $("#buscar-coleccion").addEventListener("input", () => { clearTimeout(esperaCol); esperaCol = setTimeout(renderColeccion, 140); });
@@ -846,7 +938,7 @@ function conectarEventos() {
       return;
     }
     const fila = e.target.closest(".progreso");
-    if (fila) irAlCatalogo({ linea: fila.dataset.linea, anio: fila.dataset.anio });
+    if (fila) irAlCatalogo({ linea: fila.dataset.linea, anio: fila.dataset.anio, especial: fila.dataset.especial });
   });
 
   // Diálogos: cerrar con los botones [data-cerrar] o tocando fuera
@@ -859,12 +951,16 @@ function conectarEventos() {
   // Fotos de la wiki que no cargan -> marcador "Sin foto"
   document.addEventListener("error", (e) => {
     const img = e.target;
-    if (img.tagName === "IMG" && img.closest(".foto, .ficha-foto")) {
+    if (img.tagName === "IMG" && img.closest(".foto, .diapo, .visor-diapo")) {
       img.replaceWith(Object.assign(document.createElement("div"), {
         className: "sin-foto", innerHTML: `${ICONOS.auto}Sin foto`,
       }));
     }
   }, true);
+
+  $("#bienvenida").addEventListener("close", () => ajustes.escribir("bienvenidaVista", true));
+  $("#btn-guia").addEventListener("click", mostrarBienvenida);
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-instalar]")) instalar(); });
 
   $("#btn-exportar").addEventListener("click", exportarRespaldo);
   $("#btn-csv").addEventListener("click", exportarCSV);
@@ -892,12 +988,87 @@ function conectarEventos() {
   });
 }
 
+// ------------------------------------------------------------------ versión nueva e instalación
+
+async function registrarServiceWorker() {
+  if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+  try {
+    const habiaControl = !!navigator.serviceWorker.controller;
+    const reg = await navigator.serviceWorker.register("sw.js");
+    const ofrecer = (sw) => avisar("Hay una versión nueva de la app", {
+      fijo: true,
+      accion: { texto: "Actualizar", fn: () => sw.postMessage({ tipo: "actualizar" }) },
+    });
+    if (reg.waiting && habiaControl) ofrecer(reg.waiting);
+    reg.addEventListener("updatefound", () => {
+      const nuevo = reg.installing;
+      nuevo?.addEventListener("statechange", () => {
+        if (nuevo.state === "installed" && navigator.serviceWorker.controller) ofrecer(nuevo);
+      });
+    });
+    let recargando = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (habiaControl && !recargando) { recargando = true; location.reload(); }
+    });
+    // Las apps instaladas en el iPhone casi nunca se recargan: revisar al volver a abrirlas
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") reg.update().catch(() => {});
+    });
+  } catch { /* sin service worker: la app funciona igual, pero solo con internet */ }
+}
+
+const enModoApp = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+let promptInstalar = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  promptInstalar = e;
+  actualizarConsejoInstalar();
+});
+window.addEventListener("appinstalled", () => { promptInstalar = null; actualizarConsejoInstalar(); });
+
+function actualizarConsejoInstalar() {
+  let html = "";
+  if (!enModoApp()) {
+    if (promptInstalar) {
+      html = `<button type="button" class="boton secundario" data-instalar>Instalar en este dispositivo</button>`;
+    } else if (esIOS()) {
+      html = `<p><strong>Instálala en tu iPhone:</strong> toca <b>Compartir</b>
+        <svg class="icono-compartir" viewBox="0 0 24 24" aria-label="(el cuadrado con la flecha)"><path d="M12 3v12M8 7l4-4 4 4M5 11v9h14v-9"/></svg>
+        y luego <b>Agregar a pantalla de inicio</b>.</p>`;
+    }
+  }
+  for (const el of $$(".consejo-instalar")) {
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+}
+
+async function instalar() {
+  if (!promptInstalar) return;
+  promptInstalar.prompt();
+  await promptInstalar.userChoice.catch(() => {});
+  promptInstalar = null;
+  actualizarConsejoInstalar();
+}
+
+function mostrarBienvenida() {
+  actualizarConsejoInstalar();
+  $("#bienvenida").showModal();
+}
+
 // ------------------------------------------------------------------ inicio
 
+function esqueletos(n) {
+  return Array.from({ length: n }, () => `<div class="tarjeta esqueleto" aria-hidden="true">
+    <div class="foto"></div><div class="linea" style="width:70%"></div><div class="linea" style="width:45%"></div></div>`).join("");
+}
+
 async function iniciar() {
-  if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
+  registrarServiceWorker();
+  $("#grilla-catalogo").innerHTML = esqueletos(8);
   grillaCatalogo = new Grilla($("#grilla-catalogo"), $("#centinela-catalogo"));
   grillaColeccion = new Grilla($("#grilla-coleccion"), $("#centinela-coleccion"), { fotosPropias: true });
   grillaDeseos = new Grilla($("#grilla-deseos"), $("#centinela-deseos"));
@@ -930,10 +1101,13 @@ async function iniciar() {
     for (const [sel, v] of [["#f-anio", f.anio], ["#f-linea", f.linea], ["#f-estado", f.est], ["#f-orden", f.orden]]) {
       if (v && [...$(sel).options].some((o) => o.value === v)) $(sel).value = v;
     }
+    marcarEspecial(f.especial);
   }
   actualizarConteos();
   mostrarVista(ajustes.leer("vista", "catalogo"));
   filtrarCatalogo();
+  actualizarConsejoInstalar();
+  if (!ajustes.leer("bienvenidaVista", false)) mostrarBienvenida();
 }
 
 iniciar();

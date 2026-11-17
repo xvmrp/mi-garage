@@ -172,10 +172,37 @@ main { max-width: 1200px; margin: 0 auto; padding: 16px; }
   position: absolute; top: 8px; right: 8px; background: var(--acento); color: var(--acento-texto);
   font-weight: 700; font-size: 12px; border-radius: 999px; padding: 2px 9px; box-shadow: var(--sombra);
 }
-.etiqueta-linea {
-  position: absolute; top: 8px; left: 8px; background: rgba(22, 22, 26, .78); color: #fff;
-  font-size: 10.5px; border-radius: 6px; padding: 2px 6px; letter-spacing: .2px;
+.etiquetas {
+  position: absolute; top: 8px; left: 8px; right: 52px;
+  display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none;
 }
+.chip {
+  display: inline-block; font-size: 10.5px; font-weight: 650; line-height: 1.5;
+  border-radius: 6px; padding: 1px 6px; letter-spacing: .2px; white-space: nowrap;
+}
+.e-linea { background: rgba(22, 22, 26, .78); color: #fff; font-weight: 500; }
+.e-th { background: #15803d; color: #fff; }
+.e-sth { background: linear-gradient(135deg, #f8dc7a, #d6a21e); color: #2b1d00; }
+.e-nuevo { background: #1d4ed8; color: #fff; }
+.e-tienda { background: #6d28d9; color: #fff; }
+
+.chips-filtro {
+  display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 2px;
+  -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+}
+.chips-filtro::-webkit-scrollbar { display: none; }
+.chips-filtro label { cursor: pointer; flex: none; scroll-snap-align: start; }
+.chips-filtro input { position: absolute; opacity: 0; pointer-events: none; }
+.chips-filtro span {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 7px 12px; border-radius: 999px; border: 1px solid var(--borde);
+  background: var(--superficie); font-size: 13.5px; color: var(--texto-2);
+}
+.chips-filtro input:checked + span { background: var(--texto); color: var(--fondo); border-color: var(--texto); font-weight: 600; }
+.chips-filtro input:focus-visible + span { outline: 2px solid var(--acento); outline-offset: 1px; }
+.punto { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.chips-ficha { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; }
+.chips-ficha .chip { font-size: 12px; padding: 2px 8px; }
 
 .centinela { height: 40px; }
 .vacio { text-align: center; color: var(--texto-2); padding: 40px 16px; }
@@ -242,18 +269,103 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 .ficha-pie { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
 .formulario .dialogo-pie { padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
 .ficha-cuerpo { padding: 0 16px 16px; }
-.ficha-foto {
-  background: var(--foto-fondo); border-radius: 12px; aspect-ratio: 4 / 3; overflow: hidden;
+
+/* Carrusel de fotos de la ficha: se desliza con el dedo */
+.carrusel {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  background: var(--foto-fondo); border-radius: 12px; aspect-ratio: 4 / 3; overscroll-behavior-x: contain;
+}
+.carrusel::-webkit-scrollbar { display: none; }
+.diapo {
+  flex: 0 0 100%; margin: 0; position: relative; scroll-snap-align: center;
   display: flex; align-items: center; justify-content: center;
 }
-.ficha-foto img { width: 100%; height: 100%; object-fit: contain; }
-.miniaturas { display: flex; gap: 6px; margin-top: 8px; }
-.miniaturas button {
-  border: 2px solid var(--borde); background: var(--foto-fondo); border-radius: 8px; padding: 0;
-  width: 64px; height: 48px; overflow: hidden; cursor: pointer;
+.diapo-boton { all: unset; cursor: zoom-in; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.diapo-boton:focus-visible { outline: 2px solid var(--acento); outline-offset: -3px; }
+.diapo img { width: 100%; height: 100%; object-fit: contain; }
+.diapo figcaption, .visor-diapo figcaption {
+  position: absolute; left: 8px; bottom: 8px; background: rgba(22, 22, 26, .72); color: #fff;
+  font-size: 11.5px; padding: 2px 8px; border-radius: 6px; pointer-events: none;
 }
-.miniaturas button.activa { border-color: var(--acento); }
-.miniaturas img { width: 100%; height: 100%; object-fit: contain; }
+.puntos { display: flex; justify-content: center; margin-top: 4px; }
+.puntos button { width: 28px; height: 22px; border: 0; padding: 0; background: none; cursor: pointer; }
+.puntos button::before {
+  content: ""; display: block; margin: auto; width: 8px; height: 8px; border-radius: 4px;
+  background: var(--borde); transition: width .2s, background .2s;
+}
+.puntos button.activa::before { width: 20px; background: var(--acento); }
+
+/* Visor de fotos a pantalla completa */
+.visor {
+  width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0;
+  border-radius: 0; background: #000; overflow: hidden;
+}
+.visor-carrusel {
+  display: flex; height: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.visor-carrusel::-webkit-scrollbar { display: none; }
+.visor-diapo {
+  flex: 0 0 100%; margin: 0; position: relative; scroll-snap-align: center;
+  display: flex; align-items: center; justify-content: center;
+}
+.visor-diapo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.visor-diapo figcaption { left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); }
+.visor-diapo .sin-foto { color: #aaa; }
+.visor-cerrar {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px;
+  background: rgba(255, 255, 255, .16); color: #fff;
+}
+
+/* Bienvenida */
+.bienvenida-cuerpo { padding: 28px 22px calc(22px + env(safe-area-inset-bottom)); text-align: center; }
+.bienvenida-cuerpo img { border-radius: 18px; box-shadow: var(--sombra); }
+.bienvenida-cuerpo h2 { margin: 14px 0 4px; font-size: 22px; }
+.pasos { list-style: none; padding: 0; margin: 18px 0; text-align: left; display: grid; gap: 12px; }
+.pasos li { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; }
+.pasos .num {
+  flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--acento-suave); color: var(--acento);
+  font-weight: 750; display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.mini-mas {
+  display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--acento);
+  color: var(--acento-texto); align-items: center; justify-content: center; font-size: 14px; line-height: 1;
+}
+.consejo-instalar {
+  background: var(--superficie-2); border-radius: 12px; padding: 10px 12px; margin: 0 0 14px;
+  font-size: 13.5px; text-align: left;
+}
+.consejo-instalar p { margin: 0; }
+.panel .consejo-instalar { margin-bottom: 10px; }
+.icono-compartir { width: 17px; height: 17px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.boton.grande { width: 100%; padding: 13px; font-size: 16px; border-radius: 12px; }
+
+/* Esqueletos mientras carga el catálogo */
+.esqueleto { box-shadow: none; pointer-events: none; padding-bottom: 14px; }
+.esqueleto .foto, .esqueleto .linea {
+  background: linear-gradient(90deg, var(--superficie-2) 25%, var(--pista) 50%, var(--superficie-2) 75%);
+  background-size: 200% 100%; animation: brillo 1.2s linear infinite;
+}
+.esqueleto .linea { height: 10px; border-radius: 5px; margin: 12px 10px 0; }
+@keyframes brillo { to { background-position: -200% 0; } }
+
+/* Animaciones */
+@keyframes entrar { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@keyframes subir { from { transform: translateY(100%); } }
+@keyframes fundido { from { opacity: 0; } }
+@keyframes pop { 0% { transform: scale(.5); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+dialog[open] { animation: entrar .22s cubic-bezier(.2, .8, .2, 1); }
+dialog[open]::backdrop { animation: fundido .2s ease-out; }
+@media (max-width: 600px) {
+  dialog[open]:not(.visor):not(.bienvenida) { animation: subir .3s cubic-bezier(.2, .8, .2, 1); }
+}
+.visor[open] { animation: fundido .18s ease-out; }
+.vista.activa { animation: fundido .18s ease-out; }
+.cantidad-insignia.pulso { animation: pop .34s ease-out; }
+.tarjeta { transition: transform .15s ease; }
+.tarjeta:has(.tarjeta-abrir:active) { transform: scale(.985); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
 .datos { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 14px 0 6px; font-size: 14px; }
 .datos dt { color: var(--texto-2); }
 .datos dd { margin: 0; }

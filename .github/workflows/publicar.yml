@@ -1,10 +1,12 @@
 # Publica la carpeta app/ en GitHub Pages cada vez que subes cambios a main.
+# También la usa "Actualizar catálogo" después de traer autos nuevos de la wiki.
 name: Publicar en GitHub Pages
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -23,6 +25,14 @@ jobs:
       url: ${{ steps.despliegue.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main # lo último de main (incluye el catálogo recién actualizado)
+
+      # Cada publicación lleva una versión distinta: así la app detecta que hay
+      # una versión nueva y ofrece "Actualizar".
+      - name: Marcar la versión de la app
+        run: sed -i "s/__VERSION__/$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M)/" app/sw.js
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
