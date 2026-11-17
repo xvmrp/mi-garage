@@ -1,0 +1,13 @@
+# Copia local de las páginas de la wiki (se regenera con el importador)
+importador/cache/
+
+# Configuración local del editor / asistente
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+
+# Respaldos de la colección (son datos personales: no subirlos)
+mi-garage-respaldo-*.json
+mi-garage-*.csv

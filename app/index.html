@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mi Garage</title>
+  <meta name="description" content="Registro personal de mi colección de autos Hot Wheels">
+  <meta name="theme-color" content="#16161a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="iconos/icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mi Garage">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="barra-interior">
+      <div class="marca">
+        <img src="iconos/icono.svg" alt="" width="34" height="34">
+        <div>
+          <strong>Mi Garage</strong>
+          <span>Colección Hot Wheels</span>
+        </div>
+      </div>
+      <nav class="pestanas" aria-label="Secciones">
+        <button type="button" data-vista="catalogo" class="activa">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h10"/></svg>
+          <span>Catálogo</span>
+        </button>
+        <button type="button" data-vista="coleccion">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 16V12l3-5h9l4 5h2v4"/></svg>
+          <span>Mi colección</span>
+        </button>
+        <button type="button" data-vista="deseos">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>
+          <span>Deseos</span>
+        </button>
+        <button type="button" data-vista="estadisticas">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
+          <span>Resumen</span>
+        </button>
+        <button type="button" data-vista="ajustes">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+          <span>Ajustes</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- CATÁLOGO -->
+    <section id="vista-catalogo" class="vista activa" aria-label="Catálogo">
+      <div class="herramientas">
+        <input type="search" id="buscar" placeholder="Buscar nombre, Toy #, serie o color…" autocomplete="off" aria-label="Buscar en el catálogo">
+        <div class="filtros">
+          <select id="f-anio" aria-label="Año"><option value="">Todos los años</option></select>
+          <select id="f-linea" aria-label="Línea"><option value="">Todas las líneas</option></select>
+          <select id="f-estado" aria-label="Mostrar">
+            <option value="">Todos</option>
+            <option value="tengo">Los que tengo</option>
+            <option value="falta">Me faltan</option>
+            <option value="deseo">En deseos</option>
+          </select>
+          <select id="f-orden" aria-label="Ordenar">
+            <option value="anio">Más nuevos primero</option>
+            <option value="antiguos">Más antiguos primero</option>
+            <option value="nombre">Nombre A–Z</option>
+          </select>
+        </div>
+      </div>
+      <p class="conteo" id="conteo-catalogo">Cargando catálogo…</p>
+      <div class="grilla" id="grilla-catalogo"></div>
+      <div class="centinela" id="centinela-catalogo"></div>
+    </section>
+
+    <!-- MI COLECCIÓN -->
+    <section id="vista-coleccion" class="vista" aria-label="Mi colección">
+      <div class="herramientas">
+        <input type="search" id="buscar-coleccion" placeholder="Buscar en mi colección…" autocomplete="off" aria-label="Buscar en mi colección">
+        <div class="filtros">
+          <select id="orden-coleccion" aria-label="Ordenar">
+            <option value="reciente">Agregados recientemente</option>
+            <option value="nombre">Nombre A–Z</option>
+            <option value="anio">Año del modelo</option>
+            <option value="precio">Precio (mayor a menor)</option>
+          </select>
+          <button type="button" class="boton secundario" id="btn-personalizado">+ Agregar uno que no está en el catálogo</button>
+        </div>
+      </div>
+      <p class="conteo" id="conteo-coleccion"></p>
+      <div class="grilla" id="grilla-coleccion"></div>
+      <div class="centinela" id="centinela-coleccion"></div>
+      <div class="vacio" id="vacio-coleccion" hidden>
+        <p><strong>Tu colección está vacía.</strong></p>
+        <p>Busca un auto en el <button type="button" class="enlace" data-ir="catalogo">Catálogo</button> y toca <b>+</b> para agregarlo.</p>
+      </div>
+    </section>
+
+    <!-- DESEOS -->
+    <section id="vista-deseos" class="vista" aria-label="Lista de deseos">
+      <p class="conteo" id="conteo-deseos"></p>
+      <div class="grilla" id="grilla-deseos"></div>
+      <div class="centinela" id="centinela-deseos"></div>
+      <div class="vacio" id="vacio-deseos" hidden>
+        <p><strong>No tienes autos en tu lista de deseos.</strong></p>
+        <p>Toca el corazón ♥ de un auto en el catálogo para guardarlo aquí.</p>
+      </div>
+    </section>
+
+    <!-- RESUMEN -->
+    <section id="vista-estadisticas" class="vista" aria-label="Resumen">
+      <div id="estadisticas"></div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section id="vista-ajustes" class="vista" aria-label="Ajustes">
+      <div class="panel">
+        <h2>Respaldo</h2>
+        <p class="ayuda">Tu colección se guarda solo en este navegador. Descarga un respaldo de vez en cuando, y úsalo para pasar tu colección a otro dispositivo.</p>
+        <div class="fila-botones">
+          <button type="button" class="boton" id="btn-exportar">Descargar respaldo (.json)</button>
+          <label class="boton secundario">
+            Restaurar respaldo…
+            <input type="file" id="archivo-importar" accept="application/json,.json" hidden>
+          </label>
+          <button type="button" class="boton secundario" id="btn-csv">Exportar a Excel (.csv)</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Moneda</h2>
+        <label class="campo">
+          <span>Moneda de los precios</span>
+          <select id="moneda">
+            <option value="CLP">Peso chileno (CLP)</option>
+            <option value="MXN">Peso mexicano (MXN)</option>
+            <option value="ARS">Peso argentino (ARS)</option>
+            <option value="COP">Peso colombiano (COP)</option>
+            <option value="PEN">Sol peruano (PEN)</option>
+            <option value="UYU">Peso uruguayo (UYU)</option>
+            <option value="USD">Dólar (USD)</option>
+            <option value="EUR">Euro (EUR)</option>
+          </select>
+        </label>
+      </div>
+      <div class="panel">
+        <h2>Catálogo</h2>
+        <p class="ayuda" id="info-catalogo"></p>
+        <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Para actualizarlo, ejecuta <code>actualizar-catalogo.bat</code> en tu PC.</p>
+      </div>
+      <div class="panel peligro">
+        <h2>Zona peligrosa</h2>
+        <p class="ayuda">Borra toda tu colección de este navegador. Descarga un respaldo antes.</p>
+        <button type="button" class="boton peligro" id="btn-borrar-todo">Borrar mi colección</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Ficha de un auto -->
+  <dialog id="ficha" aria-labelledby="ficha-titulo"></dialog>
+
+  <!-- Auto personalizado -->
+  <dialog id="dialogo-personalizado" aria-labelledby="personalizado-titulo">
+    <form id="form-personalizado" class="formulario">
+      <header class="dialogo-cabecera">
+        <h2 id="personalizado-titulo">Agregar un auto</h2>
+        <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">×</button>
+      </header>
+      <p class="ayuda">Para modelos que no aparecen en el catálogo (exclusivos, de otro país, sets, etc.).</p>
+      <label class="campo"><span>Nombre *</span><input name="n" required maxlength="120"></label>
+      <div class="dos-columnas">
+        <label class="campo"><span>Año</span><input name="y" type="number" min="1968" max="2100" inputmode="numeric"></label>
+        <label class="campo"><span>Línea</span><input name="l" list="lista-lineas" maxlength="60" placeholder="Mainline, Car Culture…"></label>
+      </div>
+      <div class="dos-columnas">
+        <label class="campo"><span>Serie</span><input name="s" maxlength="80"></label>
+        <label class="campo"><span>Toy #</span><input name="t" maxlength="30"></label>
+      </div>
+      <label class="campo"><span>Color</span><input name="co" maxlength="60"></label>
+      <datalist id="lista-lineas"></datalist>
+      <footer class="dialogo-pie">
+        <button type="button" class="boton secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="boton">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="aviso" class="aviso" role="status" aria-live="polite"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
