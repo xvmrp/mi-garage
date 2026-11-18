@@ -386,6 +386,14 @@ main {
 .ayuda { color: var(--texto-2); font-size: 0.8438rem; margin: 0 0 12px; }
 .estado-respaldo { font-size: 0.875rem; font-weight: 600; margin: -4px 0 12px; }
 
+/* Versión y novedades (Ajustes) */
+.novedades { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.novedades > li { font-size: 0.875rem; border-top: 1px solid var(--borde); padding-top: 8px; }
+.novedades summary { cursor: pointer; }
+.novedades .fecha { color: var(--texto-3); white-space: nowrap; }
+.novedades ul { margin: 6px 0 0; padding-left: 18px; color: var(--texto-2); }
+.novedades ul li { margin: 3px 0; }
+
 /* ---------- Diálogos ---------- */
 dialog {
   border: 0; padding: 0; border-radius: 18px; background: var(--superficie); color: var(--texto);
@@ -495,6 +503,7 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 
 /* Esqueletos mientras carga el catálogo */
 .esqueleto { box-shadow: none; pointer-events: none; padding-bottom: 14px; }
+.esqueleto .foto::after { content: none; } /* sin brillo de plástico mientras carga */
 .esqueleto .foto, .esqueleto .linea {
   background: linear-gradient(90deg, var(--superficie-2) 25%, var(--pista) 50%, var(--superficie-2) 75%);
   background-size: 200% 100%; animation: brillo 1.2s linear infinite;

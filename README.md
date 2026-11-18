@@ -106,6 +106,7 @@ python importador/importar.py --desde 2020 --hasta 2027
 | `iniciar.bat` | Abre la app en el PC |
 | `actualizar-catalogo.bat` | Descarga el catálogo actualizado |
 | `app/` | La app (HTML, CSS y JavaScript, sin dependencias) |
+| `app/logica.js` | Cálculos y decisiones de la app, separados para poder probarlos |
 | `app/datos/catalogo.json` | El catálogo generado |
 | `app/fuentes/` | Letra Barlow, guardada dentro de la app para que funcione sin internet (licencia OFL en `OFL.txt`) |
 | `importador/importar.py` | Lee la wiki y genera el catálogo (solo Python estándar) |
@@ -113,6 +114,21 @@ python importador/importar.py --desde 2020 --hasta 2027
 | `.github/workflows/publicar.yml` | Publica `app/` en GitHub Pages en cada push |
 | `.github/workflows/actualizar-catalogo.yml` | Actualiza el catálogo cada lunes y lo publica |
 | `herramientas/generar_imagenes.py` | Genera los íconos y las pantallas de arranque del iPhone |
+| `herramientas/novedades.py` | Arma la lista de "Versión y novedades" al publicar |
+| `pruebas/` y `package.json` | Pruebas automáticas (se corren con `npm test`) |
+
+## Pruebas
+
+Antes de cada publicación, GitHub corre las pruebas de `pruebas/`: la lógica de la app (filtros,
+respaldos, recordatorios, el ajuste de iOS), que el catálogo sea válido y que existan todos los
+archivos que necesita la app sin internet. Si alguna falla, la app no se publica y GitHub te avisa
+por correo. El catálogo de cada lunes también se revisa antes de guardarlo.
+
+Para correrlas en tu PC necesitas [Node](https://nodejs.org/) 22 o más nuevo:
+
+```bash
+npm test
+```
 
 ## Créditos
 

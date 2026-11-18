@@ -1,5 +1,6 @@
 # Publica la carpeta app/ en GitHub Pages cada vez que subes cambios a main.
 # También la usa "Actualizar catálogo" después de traer autos nuevos de la wiki.
+# Antes de publicar corre las pruebas (pruebas/): si alguna falla, no se publica nada.
 name: Publicar en GitHub Pages
 
 on:
@@ -18,7 +19,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  probar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Revisar la sintaxis del JavaScript
+        run: for f in app/*.js; do node --check "$f"; done
+      - name: Correr las pruebas
+        run: npm test
+
   publicar:
+    needs: probar
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -27,11 +43,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main # lo último de main (incluye el catálogo recién actualizado)
+          fetch-depth: 20 # los últimos cambios, para "Versión y novedades"
 
       # Cada publicación lleva una versión distinta: así la app detecta que hay
-      # una versión nueva y ofrece "Actualizar".
+      # una versión nueva, ofrece "Actualizar" y la muestra en Ajustes.
       - name: Marcar la versión de la app
-        run: sed -i "s/__VERSION__/$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M)/" app/sw.js
+        run: sed -i "s/__VERSION__/$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M)/" app/sw.js app/app.js
+
+      - name: Anotar las novedades
+        run: python3 herramientas/novedades.py
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

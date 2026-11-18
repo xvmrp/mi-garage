@@ -11,3 +11,6 @@ __pycache__/
 # Respaldos de la colección (son datos personales: no subirlos)
 mi-garage-respaldo-*.json
 mi-garage-*.csv
+
+# Lo genera la publicación en GitHub (herramientas/novedades.py)
+app/datos/novedades.json

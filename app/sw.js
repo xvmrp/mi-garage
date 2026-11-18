@@ -18,6 +18,7 @@ const ARCHIVOS = [
   "index.html",
   "estilos.css",
   "app.js",
+  "logica.js",
   "db.js",
   "manifest.webmanifest",
   "iconos/icono.svg",

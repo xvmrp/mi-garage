@@ -1,5 +1,12 @@
 import * as db from "./db.js";
+import {
+  ETIQUETAS, ESPECIALES, etiquetasDe, cumpleEspecial, esc, norm, textoSerie, numeroDe, celdaCSV,
+  hayFiltros, filtrarCatalogo as filtrarLista, limpiarRegistro, debeReemplazar, diasDesde,
+  mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion,
+} from "./logica.js";
 
+// La publicación en GitHub reemplaza este valor por "<commit>-<AAAAMMDDhhmm>" (ver publicar.yml)
+const VERSION = "__VERSION__";
 const IMG = "https://static.wikia.nocookie.net/hotwheels/images/";
 const WIKI = "https://hotwheels.fandom.com/wiki/";
 const ORDEN_LINEAS = ["Mainline", "Car Culture", "Team Transport", "Boulevard", "Pop Culture", "5-Packs", "Multi-Packs"];
@@ -10,30 +17,6 @@ const ICONOS = {
   mas: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   auto: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="16" r="2.5"/><circle cx="17" cy="16" r="2.5"/><path d="M3 16v-4l3-5h9l4 5h2v4"/></svg>',
 };
-
-// Etiquetas que vienen del catálogo (campo "e")
-const ETIQUETAS = {
-  sth: { corto: "Super TH", largo: "Super Treasure Hunt", clase: "e-sth" },
-  th: { corto: "TH", largo: "Treasure Hunt", clase: "e-th" },
-  nuevo: { corto: "Nuevo", largo: "Modelo nuevo del año", clase: "e-nuevo" },
-  nim: { corto: "Nuevo en Mainline", largo: "Nuevo en Mainline (antes solo en premium)", clase: "e-tienda" },
-  tg: { corto: "Target", largo: "Exclusivo de Target (Red Edition)", clase: "e-tienda" },
-  kr: { corto: "Kroger", largo: "Exclusivo de Kroger", clase: "e-tienda" },
-  dg: { corto: "Dollar General", largo: "Exclusivo de Dollar General", clase: "e-tienda" },
-  dt: { corto: "Dollar Tree", largo: "Exclusivo de Dollar Tree / Family Dollar", clase: "e-tienda" },
-};
-const ORDEN_ETIQUETAS = Object.keys(ETIQUETAS);
-const EXCLUSIVOS = ["tg", "kr", "dg", "dt"];
-const ESPECIALES = [
-  { valor: "th", nombre: "Treasure Hunts" },
-  { valor: "sth", nombre: "Super Treasure Hunts" },
-  { valor: "nuevo", nombre: "Modelos nuevos" },
-  { valor: "exclusivo", nombre: "Exclusivos de tienda" },
-];
-const etiquetasDe = (d) => (d.e || []).filter((e) => ETIQUETAS[e])
-  .sort((a, b) => ORDEN_ETIQUETAS.indexOf(a) - ORDEN_ETIQUETAS.indexOf(b));
-const cumpleEspecial = (it, esp) =>
-  !esp || (esp === "exclusivo" ? (it.e || []).some((e) => EXCLUSIVOS.includes(e)) : (it.e || []).includes(esp));
 
 const estado = {
   catalogo: [],
@@ -51,9 +34,6 @@ const estado = {
 
 const $ = (sel, raiz = document) => raiz.querySelector(sel);
 const $$ = (sel, raiz = document) => [...raiz.querySelectorAll(sel)];
-const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
-const norm = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const urlFoto = (p, ancho = 300) => (p ? `${IMG}${p}/revision/latest/scale-to-width-down/${ancho}` : null);
 const fmtNum = (n) => Number(n).toLocaleString("es");
 const plural = (n, uno, varios) => `${fmtNum(n)} ${n === 1 ? uno : varios}`;
@@ -110,6 +90,29 @@ function avisar(mensaje, { deshacer, accion, fijo = false } = {}) {
   clearTimeout(temporizadorAviso);
   if (!fijo) temporizadorAviso = setTimeout(() => el.classList.remove("visible"), accion ? 8000 : 2600);
 }
+
+// ------------------------------------------------------------------ errores
+
+/** Si algo falla, un aviso claro con la opción de copiar el detalle, en vez de quedar a medias. */
+let ultimoAvisoError = 0;
+function avisarError(error) {
+  const texto = String(error?.stack || error?.message || error || "");
+  if (!texto || error?.name === "AbortError" || /ResizeObserver loop|^Script error\.?$/i.test(texto)) return;
+  console.error(error);
+  if (Date.now() - ultimoAvisoError < 10000) return; // como mucho un aviso cada 10 s
+  ultimoAvisoError = Date.now();
+  const detalle = `Mi Garage ${VERSION}\n${new Date().toISOString()}\n${navigator.userAgent}\n\n${texto}`;
+  avisar("Algo falló. Vuelve a intentarlo; si se repite, copia el detalle para revisarlo.", {
+    accion: {
+      texto: "Copiar detalle",
+      fn: async () => {
+        try { await navigator.clipboard.writeText(detalle); avisar("Detalle copiado"); } catch { avisar("No se pudo copiar el detalle"); }
+      },
+    },
+  });
+}
+window.addEventListener("error", (e) => avisarError(e.error || e.message));
+window.addEventListener("unhandledrejection", (e) => avisarError(e.reason));
 
 // En celulares (sobre todo iPhone con la app instalada) descargar archivos no funciona bien:
 // se usa el menú "Compartir", que permite "Guardar en Archivos", enviarlo por WhatsApp, etc.
@@ -253,14 +256,6 @@ async function reducirImagen(archivo, max = 1200) {
 
 // ------------------------------------------------------------------ tarjetas
 
-/** "HW Dream Garage 1/5" */
-function textoSerie(d) {
-  const serie = d.s || d.sec || "";
-  return serie && d.sn ? `${serie} ${d.sn}` : serie;
-}
-
-/** Número de colección para mostrar en grande ("001"); "No #", "N/A"… no se muestran. */
-const numeroDe = (d) => (/^\d+$/.test(d.c || "") ? d.c : "");
 
 /** Fila del número grande y el año, igual en la tarjeta y en la ficha. */
 function filaNumeroHTML(d) {
@@ -405,7 +400,6 @@ function mostrarChipEspecial() {
 // Filtros que viven en el panel "Filtros" (el orden no cuenta: no esconde autos)
 const SELECTOR_FILTRO = { anio: "#f-anio", linea: "#f-linea", est: "#f-estado" };
 const NOMBRES_ESTADO = { tengo: "Los que tengo", falta: "Me faltan", deseo: "En deseos" };
-const hayFiltros = (f) => !!(f.anio || f.linea || f.est || f.especial);
 
 /** Los filtros activos se ven como pastillas que se quitan con un toque, y su número en el botón. */
 function pintarFiltrosActivos(f) {
@@ -435,30 +429,9 @@ function filtrarCatalogo() {
   const f = leerFiltros();
   ajustes.escribir("filtros", { ...f, q: "" });
   pintarFiltrosActivos(f);
-  const terminos = norm(f.q).trim().split(/\s+/).filter(Boolean);
-  const anio = f.anio ? Number(f.anio) : null;
-  const lista = estado.catalogo.filter((it) => {
-    if (anio && it.y !== anio) return false;
-    if (f.linea && it.l !== f.linea) return false;
-    if (!cumpleEspecial(it, f.especial)) return false;
-    if (f.est) {
-      const r = estado.coleccion.get(it.id);
-      const tiene = (r?.cantidad || 0) > 0;
-      if (f.est === "tengo" && !tiene) return false;
-      if (f.est === "falta" && tiene) return false;
-      if (f.est === "deseo" && !r?.deseo) return false;
-    }
-    return terminos.every((t) => it._q.includes(t));
-  });
-  if (f.orden === "nombre") lista.sort((a, b) => a.n.localeCompare(b.n, "es") || b.y - a.y);
-  else if (f.orden === "antiguos") lista.sort((a, b) => a.y - b.y || a._i - b._i);
-  else lista.sort((a, b) => b.y - a.y || a._i - b._i);
-
-  // ¿Cuántos autos con esta búsqueda quedan fuera por los filtros? (p. ej. el año guardado)
-  estado.ocultosPorFiltros = terminos.length && hayFiltros(f)
-    ? estado.catalogo.reduce((n, it) => n + (terminos.every((t) => it._q.includes(t)) ? 1 : 0), 0) - lista.length
-    : 0;
-
+  // ocultos: cuántos autos con esta búsqueda quedan fuera por los filtros (p. ej. el año guardado)
+  const { lista, ocultos } = filtrarLista(estado.catalogo, f, estado.coleccion);
+  estado.ocultosPorFiltros = ocultos;
   grillaCatalogo.mostrar(lista.map((it) => it.id));
   actualizarConteoCatalogo();
 }
@@ -887,8 +860,6 @@ const blobADataURL = (blob) => new Promise((ok, mal) => {
   lector.readAsDataURL(blob);
 });
 
-const diasDesde = (iso) => Math.floor((Date.now() - Date.parse(iso)) / 86400000);
-
 /** Cada cambio en la colección suma uno; el recordatorio de respaldo los usa. */
 function anotarCambio() {
   ajustes.escribir("cambiosSinRespaldo", ajustes.leer("cambiosSinRespaldo", 0) + 1);
@@ -917,24 +888,15 @@ function pintarEstadoRespaldo() {
   el.hidden = !el.textContent;
 }
 
-/**
- * Al abrir la app: si hace rato que no respaldas, un aviso con el botón "Respaldar".
- * Sin respaldo nunca: con 10 autos o desde 3 días después del primero. Con respaldo: cuando
- * pasaron 14 días y hubo cambios. Como mucho, un aviso cada 3 días.
- */
+/** Al abrir la app: si hace rato que no respaldas, un aviso con el botón "Respaldar" (reglas en logica.js). */
 function recordarRespaldo() {
-  const registros = [...estado.coleccion.values()];
-  if (!registros.length || avisoFijo) return;
-  const recordado = ajustes.leer("ultimoRecordatorio", null);
-  if (recordado && diasDesde(recordado) < 3) return;
-  const ultimo = ajustes.leer("ultimoRespaldo", null);
-  let mensaje = "";
-  if (!ultimo) {
-    const masAntiguo = registros.reduce((m, r) => (r.creado && r.creado < m ? r.creado : m), new Date().toISOString());
-    if (registros.length >= 10 || diasDesde(masAntiguo) >= 3) mensaje = "Todavía no tienes un respaldo de tu colección";
-  } else if (ajustes.leer("cambiosSinRespaldo", 0) > 0 && diasDesde(ultimo) >= 14) {
-    mensaje = `Tu último respaldo fue hace ${diasDesde(ultimo)} días`;
-  }
+  if (avisoFijo) return; // no tapar el aviso de versión nueva
+  const mensaje = mensajeRecordatorio({
+    registros: [...estado.coleccion.values()],
+    ultimoRespaldo: ajustes.leer("ultimoRespaldo", null),
+    cambios: ajustes.leer("cambiosSinRespaldo", 0),
+    ultimoRecordatorio: ajustes.leer("ultimoRecordatorio", null),
+  });
   if (!mensaje) return;
   ajustes.escribir("ultimoRecordatorio", new Date().toISOString());
   avisar(mensaje, { accion: { texto: "Respaldar", fn: exportarRespaldo } });
@@ -953,30 +915,6 @@ async function exportarRespaldo() {
   if (listo) avisar(`Respaldo guardado (${plural(respaldo.registros.length, "auto", "autos")})`);
 }
 
-function limpiarRegistro(r) {
-  const texto = (x, max) => (typeof x === "string" ? x.slice(0, max) : "");
-  const ref = {};
-  if (r.ref && typeof r.ref === "object") {
-    for (const k of ["n", "l", "s", "sn", "t", "c", "co", "p", "p2", "sec", "w"]) if (typeof r.ref[k] === "string") ref[k] = r.ref[k].slice(0, 300);
-    if (Number.isFinite(r.ref.y)) ref.y = r.ref.y;
-  }
-  return {
-    id: String(r.id).slice(0, 60),
-    cantidad: Math.max(0, Math.floor(Number(r.cantidad) || 0)),
-    deseo: !!r.deseo,
-    condicion: ["blister", "suelto"].includes(r.condicion) ? r.condicion : "",
-    fecha: /^\d{4}-\d{2}-\d{2}$/.test(r.fecha) ? r.fecha : "",
-    precio: Number.isFinite(r.precio) && r.precio >= 0 ? r.precio : null,
-    tienda: texto(r.tienda, 80),
-    notas: texto(r.notas, 1000),
-    tieneFoto: false,
-    creado: texto(r.creado, 40) || new Date().toISOString(),
-    actualizado: texto(r.actualizado, 40) || new Date().toISOString(),
-    personalizado: !!r.personalizado,
-    ref,
-  };
-}
-
 async function importarRespaldo(archivo) {
   let datos;
   try { datos = JSON.parse(await archivo.text()); } catch { datos = null; }
@@ -989,7 +927,7 @@ async function importarRespaldo(archivo) {
     if (!crudo || typeof crudo.id !== "string") continue;
     const r = limpiarRegistro(crudo);
     const actual = estado.coleccion.get(r.id);
-    if (actual && (actual.actualizado || "") >= r.actualizado) { iguales += 1; continue; }
+    if (!debeReemplazar(actual, r)) { iguales += 1; continue; }
     const foto = datos.fotos?.[crudo.id];
     if (typeof foto === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(foto)) {
       await db.guardarFoto(r.id, await (await fetch(foto)).blob());
@@ -1015,17 +953,13 @@ async function importarRespaldo(archivo) {
 function exportarCSV() {
   const columnas = ["Nombre", "Año", "Línea", "Serie", "Nº serie", "Nº colección", "Toy #", "Color", "Cantidad",
     "Estado", "Fecha compra", "Precio unidad", "Dónde", "Notas", "Lista de deseos", "Especial"];
-  const celda = (v) => {
-    const s = String(v ?? "");
-    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
   const filas = [...estado.coleccion.values()].map((r) => {
     const d = datosDe(r.id);
     return [d.n, d.y, d.l, d.s || d.sec, d.sn, d.c, d.t, d.co, r.cantidad,
       { blister: "En blíster", suelto: "Suelto" }[r.condicion] || "", r.fecha, r.precio ?? "", r.tienda, r.notas,
       r.deseo ? "Sí" : "", etiquetasDe(d).map((e) => ETIQUETAS[e].largo).join(", ")];
   });
-  const csv = "﻿" + [columnas, ...filas].map((f) => f.map(celda).join(";")).join("\r\n");
+  const csv = "﻿" + [columnas, ...filas].map((f) => f.map(celdaCSV).join(";")).join("\r\n");
   descargar(`mi-garage-${hoyLocal()}.csv`, csv, "text/csv;charset=utf-8");
 }
 
@@ -1051,7 +985,7 @@ function mostrarVista(vista) {
   if (vista === "coleccion") renderColeccion();
   if (vista === "deseos") renderDeseos();
   if (vista === "estadisticas") renderEstadisticas();
-  if (vista === "ajustes") pintarEstadoRespaldo();
+  if (vista === "ajustes") { pintarEstadoRespaldo(); pintarNovedades(); }
   const destino = posiciones[vista] || 0;
   ({ catalogo: grillaCatalogo, coleccion: grillaColeccion, deseos: grillaDeseos })[vista]
     ?.rellenarHasta(destino + cont.clientHeight);
@@ -1263,13 +1197,12 @@ function ajustarHuecoIOS() {
     const sonda = document.createElement("div");
     sonda.style.cssText = "position:fixed;top:0;bottom:0;left:0;width:0;visibility:hidden;pointer-events:none";
     document.body.append(sonda);
-    const alto = sonda.getBoundingClientRect().height;
+    const altoSonda = sonda.getBoundingClientRect().height;
     sonda.remove();
-    // En el iPhone, screen.width/height son siempre los de la pantalla vertical
-    const altoReal = innerWidth > innerHeight
-      ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
-    const diferencia = Math.round(altoReal - alto);
-    if (alto > 0 && diferencia > 0 && diferencia <= 80) hueco = diferencia; // más que eso es otra cosa
+    hueco = calcularHueco({
+      altoSonda, anchoVentana: innerWidth, altoVentana: innerHeight,
+      anchoPantalla: screen.width, altoPantalla: screen.height,
+    });
   }
   document.documentElement.style.setProperty("--hueco-ios", `${hueco}px`);
 }
@@ -1289,7 +1222,7 @@ function ajustarTamanoTexto() {
   const px = parseFloat(getComputedStyle(medida).fontSize);
   medida.remove();
   if (!px) return;
-  const escala = Math.min(1.5, Math.max(0.85, px / 17));
+  const escala = escalaTexto(px);
   document.documentElement.style.fontSize = `${(16 * escala).toFixed(2)}px`;
 }
 
@@ -1364,20 +1297,30 @@ async function iniciar() {
   $("#moneda").value = ajustes.leer("moneda", monedaPorDefecto());
   $("#orden-coleccion").value = ajustes.leer("ordenColeccion", "reciente");
 
-  let catalogo;
-  try {
-    const [resp, registros] = await Promise.all([fetch("datos/catalogo.json"), db.todos()]);
-    if (!resp.ok) throw new Error(resp.status);
-    catalogo = await resp.json();
-    for (const r of registros) estado.coleccion.set(r.id, r);
-  } catch (err) {
-    console.error(err);
-    $("#conteo-catalogo").innerHTML = location.protocol === "file:"
-      ? "No se pudo cargar el catálogo. Abre la app con <b>iniciar.bat</b> (no haciendo doble clic en index.html)."
-      : "No se pudo cargar el catálogo. Revisa tu conexión y vuelve a abrir la app.";
+  // El catálogo y tu colección se leen a la vez; si falla uno, se dice cuál y cómo seguir
+  const t0 = performance.now();
+  const [rCatalogo, rColeccion] = await Promise.allSettled([
+    fetch("datos/catalogo.json").then((resp) => {
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
+    }),
+    db.todos(),
+  ]);
+  if (rCatalogo.status === "rejected") {
+    console.error(rCatalogo.reason);
+    mostrarFalloCatalogo();
     return;
   }
-  prepararCatalogo(catalogo);
+  if (rColeccion.status === "fulfilled") {
+    for (const r of rColeccion.value) estado.coleccion.set(r.id, r);
+  } else {
+    console.error(rColeccion.reason);
+    avisar("No se pudo abrir tu colección en este navegador. Cierra la app y vuelve a abrirla.", {
+      fijo: true, accion: { texto: "Reintentar", fn: () => location.reload() },
+    });
+  }
+  prepararCatalogo(rCatalogo.value);
+  estado.msCarga = Math.round(performance.now() - t0);
 
   const f = ajustes.leer("filtros", null);
   if (!f) {
@@ -1394,10 +1337,89 @@ async function iniciar() {
   mostrarVista(ajustes.leer("vista", "catalogo"));
   filtrarCatalogo();
   mostrarChipEspecial();
+  abrirDesdeEnlace();
   actualizarConsejoInstalar();
   pintarEstadoRespaldo();
+  pintarVersion();
+  const recienActualizada = revisarActualizacion();
   if (!ajustes.leer("bienvenidaVista", false)) mostrarBienvenida();
-  else setTimeout(recordarRespaldo, 1500); // después de que la app se acomoda
+  else if (!recienActualizada) setTimeout(recordarRespaldo, 1500); // después de que la app se acomoda
+}
+
+/** Accesos directos del ícono (Android y PC) y enlaces: ?vista=coleccion, ?vista=catalogo&buscar=1 */
+function abrirDesdeEnlace() {
+  const p = new URLSearchParams(location.search);
+  if (![...p.keys()].length) return;
+  const vista = p.get("vista");
+  if (["catalogo", "coleccion", "deseos", "estadisticas", "ajustes"].includes(vista)) mostrarVista(vista);
+  if (p.has("buscar")) $("#buscar").focus();
+  history.replaceState(null, "", location.pathname); // que al recargar no vuelva a saltar
+}
+
+function mostrarFalloCatalogo() {
+  $("#grilla-catalogo").innerHTML = "";
+  if (location.protocol === "file:") {
+    $("#conteo-catalogo").innerHTML = "No se pudo cargar el catálogo. Abre la app con <b>iniciar.bat</b> (no haciendo doble clic en index.html).";
+    return;
+  }
+  $("#conteo-catalogo").innerHTML = `No se pudo cargar el catálogo. Revisa tu conexión a internet e inténtalo de nuevo.
+    <button type="button" class="boton secundario chico" id="btn-reintentar">Reintentar</button>`;
+  $("#btn-reintentar").addEventListener("click", () => location.reload());
+}
+
+// ------------------------------------------------------------------ versión y novedades
+
+/** En Ajustes: qué versión es y cuánto tardó en cargar el catálogo en este dispositivo. */
+function pintarVersion() {
+  const v = leerVersion(VERSION);
+  const partes = [v
+    ? `Versión ${v.commit}, del ${v.fecha.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.`
+    : "Copia de desarrollo (sin publicar)."];
+  if (estado.msCarga) partes.push(`En este dispositivo, el catálogo se cargó en ${fmtNum(estado.msCarga)} ms.`);
+  $("#info-version").textContent = partes.join(" ");
+}
+
+let novedades = null;
+async function leerNovedades() {
+  if (!novedades) {
+    try {
+      const resp = await fetch("datos/novedades.json");
+      novedades = resp.ok ? await resp.json() : [];
+    } catch { novedades = []; }
+  }
+  return novedades;
+}
+
+/** Los últimos cambios de la app (los genera la publicación con herramientas/novedades.py). */
+async function pintarNovedades() {
+  const lista = (await leerNovedades()).slice(0, 6);
+  const el = $("#lista-novedades");
+  el.innerHTML = lista.map((n) => {
+    const fecha = new Date(n.fecha).toLocaleDateString("es", { day: "numeric", month: "long" });
+    const cabeza = `<strong>${esc(n.titulo)}</strong> <span class="fecha">${esc(fecha)}</span>`;
+    return n.detalle?.length
+      ? `<li><details><summary>${cabeza}</summary><ul>${n.detalle.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></details></li>`
+      : `<li>${cabeza}</li>`;
+  }).join("");
+  el.hidden = !lista.length;
+}
+
+/** Si la app se actualizó desde la última vez que la abriste, avisa qué cambió. */
+function revisarActualizacion() {
+  if (!leerVersion(VERSION)) return false; // copia de desarrollo
+  const anterior = ajustes.leer("versionVista", null);
+  ajustes.escribir("versionVista", VERSION);
+  if (!anterior || anterior === VERSION) return false;
+  leerNovedades().then((lista) => {
+    const titulo = lista[0]?.titulo;
+    avisar(titulo ? `Mi Garage se actualizó: ${titulo}` : "Mi Garage se actualizó", {
+      accion: {
+        texto: "Ver novedades",
+        fn: () => { mostrarVista("ajustes"); $("#panel-novedades").scrollIntoView({ block: "start" }); },
+      },
+    });
+  });
+  return true;
 }
 
 iniciar();

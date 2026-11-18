@@ -1,0 +1,9 @@
+{
+  "name": "mi-garage",
+  "private": true,
+  "type": "module",
+  "description": "Pruebas de Mi Garage. La app no tiene dependencias: solo se necesita Node 22 o más nuevo.",
+  "scripts": {
+    "test": "node --test \"pruebas/*.test.js\""
+  }
+}

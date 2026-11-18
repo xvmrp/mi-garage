@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Seguridad: solo corre el código de la propia app; imágenes de la app, de tus fotos (blob:)
+       y de la Hot Wheels Wiki; los respaldos traen fotos como data: -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: https://static.wikia.nocookie.net; font-src 'self'; connect-src 'self' data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <title>Mi Garage</title>
   <meta name="description" content="Registro personal de mi colección de autos Hot Wheels">
   <meta name="theme-color" content="#1d2024">
@@ -176,6 +179,11 @@
         <h2>Catálogo</h2>
         <p class="ayuda" id="info-catalogo"></p>
         <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Se actualiza solo cada semana con los autos nuevos. Las fotos que ya viste quedan guardadas para verlas sin internet.</p>
+      </div>
+      <div class="panel" id="panel-novedades">
+        <h2>Versión y novedades</h2>
+        <p class="ayuda" id="info-version"></p>
+        <ol class="novedades" id="lista-novedades" hidden></ol>
       </div>
       <div class="panel">
         <h2>Privacidad</h2>

@@ -41,6 +41,15 @@ jobs:
             echo "cambio=si" >> "$GITHUB_OUTPUT"
           fi
 
+      # Si la wiki cambió de forma rara y el catálogo salió malo, se detiene aquí y no se guarda
+      - uses: actions/setup-node@v4
+        if: steps.revisar.outputs.cambio == 'si'
+        with:
+          node-version: 22
+      - name: Revisar el catálogo nuevo
+        if: steps.revisar.outputs.cambio == 'si'
+        run: node --test pruebas/catalogo.test.js
+
       - name: Guardar el catálogo nuevo
         if: steps.revisar.outputs.cambio == 'si'
         run: |
