@@ -8,6 +8,8 @@ se puede instalar como app y funciona sin internet.
 - **Catálogo**: 15.282 autos de 1968 a 2027 sacados de la [Hot Wheels Wiki](https://hotwheels.fandom.com/):
   Mainline, Car Culture, Team Transport, Boulevard, Pop Culture, 5-Packs y Multi-Packs.
   Puedes buscar por nombre, Toy # (el código que trae el blíster por detrás), serie o color.
+  En la ficha de un auto ves cuántos tienes de su serie (p. ej. "Sweet Rides 2026": 1 de 5) y
+  **Ver toda la serie** te la muestra entera, en orden.
 - **Cacería**: insignias y filtros para **Treasure Hunts**, **Super Treasure Hunts**, **modelos nuevos**
   del año y **exclusivos de tienda** (Target, Kroger, Dollar General, Dollar Tree).
 - **Mi colección**: toca **+** para agregar un auto. En su ficha anotas cantidad, si está en blíster

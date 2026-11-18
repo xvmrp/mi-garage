@@ -55,13 +55,48 @@ export function celdaCSV(v) {
 // ------------------------------------------------------------------ catálogo
 
 /** ¿Hay algún filtro que pueda esconder autos? (el orden no cuenta) */
-export const hayFiltros = (f) => !!(f.anio || f.linea || f.est || f.especial);
+export const hayFiltros = (f) => !!(f.anio || f.linea || f.est || f.especial || f.serie);
+
+// ------------------------------------------------------------------ series
+
+/** "4/5" -> { n: 4, de: 5 }; null si no trae número ("No #", "Unnumbered"…). */
+export function posicionEnSerie(sn) {
+  const m = /^(\d+)\/(\d+)$/.exec(sn || "");
+  return m ? { n: Number(m[1]), de: Number(m[2]) } : null;
+}
+
+/** El mismo nombre de serie se repite en distintos años ("Sweet Rides" 2023 y 2026): la clave lleva los dos. */
+export const claveSerie = (d) => (d.s && d.y ? `${d.y}|${d.s}` : "");
 
 /**
- * Filtra y ordena el catálogo. `f` = { q, anio, linea, est, orden, especial };
- * `coleccion` = Map id -> registro. Devuelve la lista y cuántos autos con esa búsqueda
- * quedaron fuera solo por los filtros (para avisar "Hay N más fuera de tus filtros").
- * Cada auto necesita `_q` (texto de búsqueda ya normalizado) e `_i` (posición original).
+ * Resumen de la serie de un auto para su ficha. `miembros` = los autos del catálogo con la misma
+ * claveSerie. Cuenta posiciones, no autos: el "2nd Color" ocupa la misma que el original.
+ * Devuelve null si no vale la pena mostrarla: menos de 2 autos, o un grupo grande sin números
+ * (p. ej. "1999 Hot Wheels", que es todo el año y no una serie).
+ */
+export function resumenSerie(d, miembros, coleccion) {
+  if (!miembros || miembros.length < 2) return null;
+  const propia = posicionEnSerie(d.sn);
+  if (!propia && miembros.length > 30) return null;
+  const posicion = (it) => posicionEnSerie(it.sn)?.n ?? it.id;
+  const tengo = new Set(miembros.filter((it) => (coleccion.get(it.id)?.cantidad || 0) > 0).map(posicion));
+  const total = propia ? propia.de : new Set(miembros.map(posicion)).size;
+  return {
+    nombre: d.s,
+    anio: d.y,
+    total,
+    tengo: Math.min(tengo.size, total),
+    actual: propia?.n ?? null, // el número de este auto
+    // Qué números de la serie tienes (para dibujar los casilleros); solo si la serie va numerada
+    posiciones: propia ? [...tengo].filter((n) => typeof n === "number").sort((a, b) => a - b) : null,
+  };
+}
+
+/**
+ * Filtra y ordena el catálogo. `f` = { q, anio, linea, est, orden, especial, serie };
+ * `serie` = { s, y } o vacío. `coleccion` = Map id -> registro. Devuelve la lista y cuántos
+ * autos con esa búsqueda quedaron fuera solo por los filtros (para avisar "Hay N más fuera de
+ * tus filtros"). Cada auto necesita `_q` (texto de búsqueda ya normalizado) e `_i` (posición original).
  */
 export function filtrarCatalogo(catalogo, f, coleccion) {
   const terminos = norm(f.q).trim().split(/\s+/).filter(Boolean);
@@ -69,6 +104,7 @@ export function filtrarCatalogo(catalogo, f, coleccion) {
   const anio = f.anio ? Number(f.anio) : null;
   const lista = catalogo.filter((it) => {
     if (anio && it.y !== anio) return false;
+    if (f.serie && (it.s !== f.serie.s || it.y !== f.serie.y)) return false;
     if (f.linea && it.l !== f.linea) return false;
     if (!cumpleEspecial(it, f.especial)) return false;
     if (f.est) {
@@ -80,7 +116,9 @@ export function filtrarCatalogo(catalogo, f, coleccion) {
     }
     return coincide(it);
   });
+  const enSerie = (it) => posicionEnSerie(it.sn)?.n ?? Infinity;
   if (f.orden === "nombre") lista.sort((a, b) => a.n.localeCompare(b.n, "es") || b.y - a.y);
+  else if (f.serie) lista.sort((a, b) => enSerie(a) - enSerie(b) || a._i - b._i); // 1/5, 2/5…
   else if (f.orden === "antiguos") lista.sort((a, b) => a.y - b.y || a._i - b._i);
   else lista.sort((a, b) => b.y - a.y || a._i - b._i);
   const ocultos = terminos.length && hayFiltros(f)

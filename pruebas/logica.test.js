@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import {
   esc, norm, textoSerie, numeroDe, celdaCSV, hayFiltros, filtrarCatalogo, limpiarRegistro,
   debeReemplazar, diasDesde, mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion,
-  cumpleEspecial, etiquetasDe,
+  cumpleEspecial, etiquetasDe, posicionEnSerie, claveSerie, resumenSerie,
 } from "../app/logica.js";
 
 const DIA = 86400000;
@@ -75,6 +75,42 @@ test("filtrar por línea, especial y lo que tengo", () => {
 test("ordenar por nombre y por más antiguos", () => {
   assert.deepEqual(ids(filtrarCatalogo(CATALOGO, filtro({ orden: "nombre" }), new Map())), ["d", "a", "b", "e", "c"]);
   assert.deepEqual(ids(filtrarCatalogo(CATALOGO, filtro({ orden: "antiguos" }), new Map())), ["a", "e", "b", "c", "d"]);
+});
+
+// Una serie repetida en dos años, con un "2nd Color" y un auto de otra serie que se llama parecido
+const SERIES = [
+  { id: "s5", n: "Mad Drip", y: 2026, s: "Sweet Rides", sn: "5/5" },
+  { id: "s1", n: "Donut Drifter", y: 2026, s: "Sweet Rides", sn: "1/5" },
+  { id: "s4", n: "Sweet Driver", y: 2026, s: "Sweet Rides", sn: "4/5" },
+  { id: "s1b", n: "Donut Drifter (2nd Color)", y: 2026, s: "Sweet Rides", sn: "1/5" },
+  { id: "v2", n: "Sweet Driver", y: 2023, s: "Sweet Rides", sn: "2/5" },
+  { id: "ff", n: "Sweet Driver", y: 2022, s: "Fast Foodie", sn: "3/5" },
+].map((it, i) => ({ ...it, _q: norm(`${it.n} ${it.s}`), _i: i }));
+const de2026 = SERIES.filter((it) => claveSerie(it) === "2026|Sweet Rides");
+
+test("ver una serie: solo ese año y en el orden de la serie", () => {
+  const f = filtro({ serie: { s: "Sweet Rides", y: 2026 } });
+  assert.ok(hayFiltros(f));
+  assert.deepEqual(ids(filtrarCatalogo(SERIES, f, new Map())), ["s1", "s1b", "s4", "s5"]);
+  // Buscar dentro de la serie avisa de los que quedan fuera
+  const r = filtrarCatalogo(SERIES, { ...f, q: "sweet driver" }, new Map());
+  assert.deepEqual(ids(r), ["s4"]);
+  assert.equal(r.ocultos, 2);
+});
+
+test("resumen de la serie en la ficha", () => {
+  assert.deepEqual(posicionEnSerie("4/5"), { n: 4, de: 5 });
+  assert.equal(posicionEnSerie("No #"), null);
+  assert.equal(claveSerie({ y: 2026 }), "");
+  const coleccion = new Map([["s1b", { cantidad: 1 }], ["s1", { cantidad: 2 }], ["s5", { cantidad: 0 }], ["v2", { cantidad: 1 }]]);
+  assert.deepEqual(resumenSerie(SERIES[2], de2026, coleccion),
+    { nombre: "Sweet Rides", anio: 2026, total: 5, tengo: 1, actual: 4, posiciones: [1] }, "el 2nd Color no cuenta doble");
+  assert.equal(resumenSerie(SERIES[4], [SERIES[4]], coleccion), null, "una serie de un solo auto no se muestra");
+  // Grupo sin números: cuenta autos; si es enorme es el año entero, no una serie
+  const sinNumero = (n) => Array.from({ length: n }, (_, i) => ({ id: `g${i}`, y: 1999, s: "Heavyweights" }));
+  assert.deepEqual(resumenSerie(sinNumero(6)[0], sinNumero(6), new Map([["g2", { cantidad: 1 }]])),
+    { nombre: "Heavyweights", anio: 1999, total: 6, tengo: 1, actual: null, posiciones: null });
+  assert.equal(resumenSerie(sinNumero(109)[0], sinNumero(109), new Map()), null);
 });
 
 test("un respaldo con datos malos queda limpio", () => {

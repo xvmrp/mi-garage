@@ -2,7 +2,7 @@ import * as db from "./db.js";
 import {
   ETIQUETAS, ESPECIALES, etiquetasDe, cumpleEspecial, esc, norm, textoSerie, numeroDe, celdaCSV,
   hayFiltros, filtrarCatalogo as filtrarLista, limpiarRegistro, debeReemplazar, diasDesde,
-  mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion,
+  mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion, claveSerie, resumenSerie,
 } from "./logica.js";
 
 // La publicación en GitHub reemplaza este valor por "<commit>-<AAAAMMDDhhmm>" (ver publicar.yml)
@@ -26,6 +26,8 @@ const estado = {
   totalesLinea: new Map(),
   totalesAnio: new Map(), // solo Mainline
   totalesEspecial: new Map(), // th, sth, nuevo, exclusivo
+  porSerie: new Map(), // "2026|Sweet Rides" -> autos de esa serie
+  serie: null, // { s, y }: la serie que se está viendo en el catálogo (se elige desde la ficha)
   vista: "catalogo",
   todosLosAnios: false,
 };
@@ -384,6 +386,7 @@ function leerFiltros() {
     est: $("#f-estado").value,
     orden: $("#f-orden").value,
     especial: $('input[name="especial"]:checked')?.value || "",
+    serie: estado.serie,
   };
 }
 
@@ -404,6 +407,7 @@ const NOMBRES_ESTADO = { tengo: "Los que tengo", falta: "Me faltan", deseo: "En 
 /** Los filtros activos se ven como pastillas que se quitan con un toque, y su número en el botón. */
 function pintarFiltrosActivos(f) {
   const activos = [
+    f.serie && ["serie", `${f.serie.s} ${f.serie.y}`],
     f.anio && ["anio", f.anio],
     f.linea && ["linea", f.linea],
     f.est && ["est", NOMBRES_ESTADO[f.est] || f.est],
@@ -421,13 +425,15 @@ function pintarFiltrosActivos(f) {
 /** Quita los filtros (y el tipo de auto, salvo que se pida lo contrario) sin tocar la búsqueda. */
 function quitarFiltros({ especial = true } = {}) {
   for (const sel of Object.values(SELECTOR_FILTRO)) $(sel).value = "";
+  estado.serie = null;
   if (especial) { marcarEspecial(""); mostrarChipEspecial(); }
   filtrarDesdeArriba();
 }
 
 function filtrarCatalogo() {
   const f = leerFiltros();
-  ajustes.escribir("filtros", { ...f, q: "" });
+  // La serie es un salto desde la ficha, no una preferencia: no se recuerda al volver a abrir
+  ajustes.escribir("filtros", { ...f, q: "", serie: null });
   pintarFiltrosActivos(f);
   // ocultos: cuántos autos con esta búsqueda quedan fuera por los filtros (p. ej. el año guardado)
   const { lista, ocultos } = filtrarLista(estado.catalogo, f, estado.coleccion);
@@ -472,6 +478,8 @@ function prepararCatalogo(datos) {
     }
     estado.totalesLinea.set(it.l, (estado.totalesLinea.get(it.l) || 0) + 1);
     if (it.l === "Mainline") estado.totalesAnio.set(it.y, (estado.totalesAnio.get(it.y) || 0) + 1);
+    const serie = claveSerie(it);
+    if (serie) (estado.porSerie.get(serie) || estado.porSerie.set(serie, []).get(serie)).push(it);
   });
 
   const anios = [...new Set(estado.catalogo.map((it) => it.y))].sort((a, b) => b - a);
@@ -622,6 +630,33 @@ function protegerCambios(dialogo, leerEstado) {
     || confirm("Tienes cambios sin guardar. ¿Salir sin guardarlos?");
 }
 
+/**
+ * En la ficha: cuántos de la serie tienes y el botón para verla entera. Si la serie va numerada
+ * y es corta, un casillero por número: lleno los que tienes, marcado el de este auto.
+ */
+function serieFichaHTML(s) {
+  let casilleros = "";
+  if (s.posiciones && s.total <= 12) {
+    const numeros = Array.from({ length: s.total }, (_, i) => i + 1);
+    const faltan = numeros.filter((n) => !s.posiciones.includes(n));
+    const resumen = [s.posiciones.length && `Tienes: ${s.posiciones.join(", ")}`, faltan.length && `Te faltan: ${faltan.join(", ")}`]
+      .filter(Boolean).join(". ");
+    casilleros = `<span class="casilleros" role="img" aria-label="${esc(resumen)}">${numeros.map((n) => {
+      const clases = [s.posiciones.includes(n) && "lleno", n === s.actual && "este"].filter(Boolean).join(" ");
+      return `<span${clases ? ` class="${clases}"` : ""}>${n}</span>`;
+    }).join("")}</span>`;
+  }
+  return `<div class="serie-ficha">
+    <div class="serie-avance">
+      <span>${!s.tengo ? `Te faltan los ${s.total} de esta serie`
+        : s.tengo === s.total ? `Tienes la serie completa: ${s.total} de ${s.total}`
+        : `Tienes ${s.tengo} de ${s.total} de esta serie`}</span>
+      ${casilleros}
+    </div>
+    <button type="button" class="boton secundario" data-ver-serie>Ver toda la serie</button>
+  </div>`;
+}
+
 async function abrirFicha(id) {
   const d = datosDe(id);
   const existe = estado.coleccion.has(id);
@@ -633,6 +668,7 @@ async function abrirFicha(id) {
     d.p2 && { tipo: "En blíster", url: urlFoto(d.p2, 640), grande: urlFoto(d.p2, 1400) },
   ].filter(Boolean);
   const etiquetas = etiquetasDe(d);
+  const serie = resumenSerie(d, estado.porSerie.get(claveSerie(d)), estado.coleccion);
   const filas = [
     ["Año", d.y], ["Línea", d.l], ["Serie", d.s], ["Nº en la serie", d.sn], ["Nº de colección", d.c],
     ["Toy #", d.t], ["Color", d.co], ["Grupo", d.sec && d.sec !== d.s ? d.sec : ""], ["Notas", d.no],
@@ -666,6 +702,7 @@ async function abrirFicha(id) {
         ${fotos.length > 1 ? `<div class="puntos">${fotos.map((f, i) => `
           <button type="button" data-ir-foto="${i}" class="${i === 0 ? "activa" : ""}" aria-label="Foto ${i + 1}: ${esc(f.tipo)}"></button>`).join("")}</div>` : ""}
         <dl class="datos">${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+        ${serie ? serieFichaHTML(serie) : ""}
         ${d.w ? `<a class="wiki-link" href="${esc(WIKI + d.w)}" target="_blank" rel="noopener">Ver en la Hot Wheels Wiki</a>` : ""}
         ${r.personalizado ? `<p><button type="button" class="enlace" data-editar>Editar datos del auto</button></p>` : ""}
 
@@ -737,6 +774,10 @@ async function abrirFicha(id) {
       if (!dialogo.puedeCerrar()) return;
       dialogo.close();
       abrirPersonalizado(id);
+    } else if (b.hasAttribute("data-ver-serie")) {
+      if (!dialogo.puedeCerrar()) return;
+      dialogo.close();
+      irAlCatalogo({ serie: { s: d.s, y: d.y } });
     }
   });
 
@@ -1014,11 +1055,12 @@ function filtrarDesdeArriba() {
   $("#contenido").scrollTop = 0;
 }
 
-function irAlCatalogo({ linea = "", anio = "", est = "", especial = "" } = {}) {
+function irAlCatalogo({ linea = "", anio = "", est = "", especial = "", serie = null } = {}) {
   $("#buscar").value = "";
   $("#f-linea").value = linea;
   $("#f-anio").value = anio;
   $("#f-estado").value = est;
+  estado.serie = serie;
   marcarEspecial(especial);
   posiciones.catalogo = 0;
   mostrarVista("catalogo");
@@ -1107,7 +1149,8 @@ function conectarEventos() {
   $("#filtros-activos").addEventListener("click", (e) => {
     const b = e.target.closest("[data-quitar-filtro]");
     if (!b) return;
-    $(SELECTOR_FILTRO[b.dataset.quitarFiltro]).value = "";
+    if (b.dataset.quitarFiltro === "serie") estado.serie = null;
+    else $(SELECTOR_FILTRO[b.dataset.quitarFiltro]).value = "";
     filtrarDesdeArriba();
   });
   $("#pista-filtros").addEventListener("click", (e) => {

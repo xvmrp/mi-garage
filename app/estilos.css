@@ -537,6 +537,21 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 .dialogo-cabecera h2 { overflow-wrap: anywhere; }
 .wiki-link { display: inline-block; font-size: 0.8438rem; margin: 4px 0 6px; }
 
+/* La serie del auto en la ficha: casilleros como los números "1/5" impresos en el blíster */
+.serie-ficha {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px;
+  margin: 10px 0 8px; padding: 10px 12px; border-radius: var(--radio); background: var(--superficie-2);
+}
+.serie-avance { display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; min-width: 0; }
+.casilleros { display: flex; flex-wrap: wrap; gap: 5px; }
+.casilleros span {
+  display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.6rem; padding: 0 4px;
+  border: 1px dashed var(--borde-control); border-radius: 5px;
+  font: 700 0.875rem/1 var(--letra-condensada); color: var(--texto-3);
+}
+.casilleros .lleno { border: 1px solid var(--acento-fuerte); background: var(--acento); color: var(--acento-texto); }
+.casilleros .este { box-shadow: 0 0 0 2px var(--superficie-2), 0 0 0 4px var(--texto); }
+
 .registro {
   border: 1px solid var(--borde); border-radius: 14px; padding: 12px 14px 4px; margin: 14px 0 0;
 }
