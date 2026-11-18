@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Mi Garage</title>
   <meta name="description" content="Registro personal de mi colección de autos Hot Wheels">
   <meta name="theme-color" content="#1d2024">
@@ -32,6 +32,7 @@
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
+  <h1 class="solo-lectores">Mi Garage</h1>
   <header class="barra">
     <div class="barra-interior">
       <div class="marca">
@@ -145,6 +146,7 @@
       <div class="panel">
         <h2>Respaldo</h2>
         <p class="ayuda">Tu colección se guarda solo en este navegador. Descarga un respaldo de vez en cuando, y úsalo para pasar tu colección a otro dispositivo.</p>
+        <p class="estado-respaldo" id="estado-respaldo" hidden></p>
         <div class="fila-botones">
           <button type="button" class="boton" id="btn-exportar">Descargar respaldo (.json)</button>
           <label class="boton secundario">
@@ -174,6 +176,15 @@
         <h2>Catálogo</h2>
         <p class="ayuda" id="info-catalogo"></p>
         <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Se actualiza solo cada semana con los autos nuevos. Las fotos que ya viste quedan guardadas para verlas sin internet.</p>
+      </div>
+      <div class="panel">
+        <h2>Privacidad</h2>
+        <p class="ayuda">Tu colección, tus fotos y tus notas se guardan solo en este dispositivo. Mi Garage no tiene cuentas, publicidad ni estadísticas, y no envía tus datos a ningún lado. Solo salen del dispositivo cuando tú descargas un respaldo o lo exportas a Excel.</p>
+        <p class="ayuda">La app se descarga desde GitHub Pages y las fotos del catálogo desde los servidores de Fandom. Como cualquier sitio web, esos servicios reciben tu dirección IP; no reciben nada de tu colección.</p>
+      </div>
+      <div class="panel">
+        <h2>Acerca de Mi Garage</h2>
+        <p class="ayuda">Mi Garage es una app personal, sin relación con Mattel ni con Fandom. Hot Wheels es una marca registrada de Mattel; los nombres y fotos de los autos se usan solo para identificarlos en tu colección.</p>
       </div>
       <div class="panel peligro">
         <h2>Borrar datos</h2>

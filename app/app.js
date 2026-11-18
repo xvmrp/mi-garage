@@ -115,7 +115,7 @@ function avisar(mensaje, { deshacer, accion, fijo = false } = {}) {
 // se usa el menú "Compartir", que permite "Guardar en Archivos", enviarlo por WhatsApp, etc.
 const esCelular = matchMedia("(pointer: coarse)").matches;
 
-async function descargar(nombre, contenido, tipo) {
+async function descargar(nombre, contenido, tipo, alGuardar = () => {}) {
   const blob = contenido instanceof Blob ? contenido : new Blob([contenido], { type: tipo });
   if (esCelular && navigator.canShare) {
     const archivo = new File([blob], nombre, { type: tipo });
@@ -123,12 +123,13 @@ async function descargar(nombre, contenido, tipo) {
       const compartir = () => navigator.share({ files: [archivo], title: nombre });
       try {
         await compartir();
+        alGuardar();
         return true;
       } catch (e) {
         if (e.name === "AbortError") return false; // el usuario cerró el menú
         if (e.name === "NotAllowedError") {
           // Safari exige un toque reciente y preparar el archivo tomó tiempo: pedir otro toque
-          avisar("Tu archivo está listo", { accion: { texto: "Guardar", fn: () => compartir().catch(() => {}) } });
+          avisar("Tu archivo está listo", { accion: { texto: "Guardar", fn: () => compartir().then(alGuardar).catch(() => {}) } });
           return false;
         }
       }
@@ -140,6 +141,7 @@ async function descargar(nombre, contenido, tipo) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
+  alGuardar();
   return true;
 }
 
@@ -181,6 +183,7 @@ async function persistir(reg) {
   if (item) reg.ref = refDe(item); // mantener la copia al día
   await db.guardar(reg);
   estado.coleccion.set(reg.id, reg);
+  anotarCambio();
   if (!persistenciaPedida) { persistenciaPedida = true; db.pedirPersistencia(); }
   alCambiar(reg.id);
 }
@@ -190,6 +193,7 @@ async function quitarRegistro(id, { silencioso = false } = {}) {
   await db.borrar(id);
   if (reg?.tieneFoto) { await db.borrarFoto(id); olvidarFotoPropia(id); }
   estado.coleccion.delete(id);
+  anotarCambio();
   alCambiar(id);
   if (!silencioso) avisar("Quitado de tu garage");
 }
@@ -883,6 +887,59 @@ const blobADataURL = (blob) => new Promise((ok, mal) => {
   lector.readAsDataURL(blob);
 });
 
+const diasDesde = (iso) => Math.floor((Date.now() - Date.parse(iso)) / 86400000);
+
+/** Cada cambio en la colección suma uno; el recordatorio de respaldo los usa. */
+function anotarCambio() {
+  ajustes.escribir("cambiosSinRespaldo", ajustes.leer("cambiosSinRespaldo", 0) + 1);
+}
+
+function respaldoGuardado() {
+  ajustes.escribir("ultimoRespaldo", new Date().toISOString());
+  ajustes.escribir("cambiosSinRespaldo", 0);
+  pintarEstadoRespaldo();
+}
+
+/** En Ajustes: cuándo fue el último respaldo y cuántos cambios hubo después. */
+function pintarEstadoRespaldo() {
+  const el = $("#estado-respaldo");
+  const ultimo = ajustes.leer("ultimoRespaldo", null);
+  const cambios = ajustes.leer("cambiosSinRespaldo", 0);
+  if (!ultimo) {
+    el.textContent = estado.coleccion.size ? "Todavía no has descargado un respaldo de esta colección." : "";
+  } else {
+    const dias = diasDesde(ultimo);
+    const cuando = dias <= 0 ? "hoy" : dias === 1 ? "ayer" : `hace ${dias} días`;
+    const fecha = new Date(ultimo).toLocaleDateString("es", { day: "numeric", month: "long" });
+    el.textContent = `Último respaldo: ${fecha} (${cuando}).`
+      + (cambios ? ` Desde entonces hiciste ${plural(cambios, "cambio", "cambios")}.` : "");
+  }
+  el.hidden = !el.textContent;
+}
+
+/**
+ * Al abrir la app: si hace rato que no respaldas, un aviso con el botón "Respaldar".
+ * Sin respaldo nunca: con 10 autos o desde 3 días después del primero. Con respaldo: cuando
+ * pasaron 14 días y hubo cambios. Como mucho, un aviso cada 3 días.
+ */
+function recordarRespaldo() {
+  const registros = [...estado.coleccion.values()];
+  if (!registros.length || avisoFijo) return;
+  const recordado = ajustes.leer("ultimoRecordatorio", null);
+  if (recordado && diasDesde(recordado) < 3) return;
+  const ultimo = ajustes.leer("ultimoRespaldo", null);
+  let mensaje = "";
+  if (!ultimo) {
+    const masAntiguo = registros.reduce((m, r) => (r.creado && r.creado < m ? r.creado : m), new Date().toISOString());
+    if (registros.length >= 10 || diasDesde(masAntiguo) >= 3) mensaje = "Todavía no tienes un respaldo de tu colección";
+  } else if (ajustes.leer("cambiosSinRespaldo", 0) > 0 && diasDesde(ultimo) >= 14) {
+    mensaje = `Tu último respaldo fue hace ${diasDesde(ultimo)} días`;
+  }
+  if (!mensaje) return;
+  ajustes.escribir("ultimoRecordatorio", new Date().toISOString());
+  avisar(mensaje, { accion: { texto: "Respaldar", fn: exportarRespaldo } });
+}
+
 async function exportarRespaldo() {
   const fotos = {};
   for (const [id, blob] of await db.todasLasFotos()) fotos[id] = await blobADataURL(blob);
@@ -891,7 +948,8 @@ async function exportarRespaldo() {
     moneda: ajustes.leer("moneda", monedaPorDefecto()),
     registros: [...estado.coleccion.values()], fotos,
   };
-  const listo = await descargar(`mi-garage-respaldo-${hoyLocal()}.json`, JSON.stringify(respaldo), "application/json");
+  const listo = await descargar(`mi-garage-respaldo-${hoyLocal()}.json`, JSON.stringify(respaldo), "application/json",
+    respaldoGuardado);
   if (listo) avisar(`Respaldo guardado (${plural(respaldo.registros.length, "auto", "autos")})`);
 }
 
@@ -993,6 +1051,7 @@ function mostrarVista(vista) {
   if (vista === "coleccion") renderColeccion();
   if (vista === "deseos") renderDeseos();
   if (vista === "estadisticas") renderEstadisticas();
+  if (vista === "ajustes") pintarEstadoRespaldo();
   const destino = posiciones[vista] || 0;
   ({ catalogo: grillaCatalogo, coleccion: grillaColeccion, deseos: grillaDeseos })[vista]
     ?.rellenarHasta(destino + cont.clientHeight);
@@ -1054,11 +1113,6 @@ function conectarEventos() {
   $("#buscar").addEventListener("input", () => { clearTimeout(espera); espera = setTimeout(filtrarDesdeArriba, 140); });
   ["#f-anio", "#f-linea", "#f-estado", "#f-orden"].forEach((s) => $(s).addEventListener("change", filtrarDesdeArriba));
   $$('input[name="especial"]').forEach((r) => r.addEventListener("change", filtrarDesdeArriba));
-
-  // iPhone: bloquear el zoom con dos dedos (Safari no respeta siempre "user-scalable=no")
-  for (const tipo of ["gesturestart", "gesturechange"]) {
-    document.addEventListener(tipo, (e) => e.preventDefault(), { passive: false });
-  }
 
   // Visor: tocar la foto la acerca (y se recorre con el dedo); tocar de nuevo la aleja
   $("#visor").addEventListener("click", (e) => {
@@ -1220,6 +1274,25 @@ function ajustarHuecoIOS() {
   document.documentElement.style.setProperty("--hueco-ios", `${hueco}px`);
 }
 
+/**
+ * iPhone/iPad: los textos siguen el "Tamaño del texto" de Ajustes > Pantalla y brillo (y los
+ * tamaños grandes de Accesibilidad). `-apple-system-body` mide 17 px con el tamaño normal; los
+ * textos del CSS están en rem, así que basta con escalar la letra base. Tope de 1,5× para que
+ * los botones y tarjetas no se desarmen.
+ */
+function ajustarTamanoTexto() {
+  if (!esIOS()) return;
+  const medida = document.createElement("span");
+  medida.style.cssText = "font: -apple-system-body; position: absolute; visibility: hidden";
+  medida.textContent = "x";
+  document.body.append(medida);
+  const px = parseFloat(getComputedStyle(medida).fontSize);
+  medida.remove();
+  if (!px) return;
+  const escala = Math.min(1.5, Math.max(0.85, px / 17));
+  document.documentElement.style.fontSize = `${(16 * escala).toFixed(2)}px`;
+}
+
 /** Medir al abrir, de nuevo cuando iOS se acomoda, al girar y al volver a la app. */
 function vigilarHuecoIOS() {
   const medir = () => { ajustarHuecoIOS(); setTimeout(ajustarHuecoIOS, 500); };
@@ -1277,6 +1350,9 @@ function esqueletos(n) {
 }
 
 async function iniciar() {
+  ajustarTamanoTexto();
+  // Si cambias el tamaño del texto con la app abierta, se aplica al volver a ella
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") ajustarTamanoTexto(); });
   vigilarHuecoIOS();
   registrarServiceWorker();
   $("#grilla-catalogo").innerHTML = esqueletos(8);
@@ -1319,7 +1395,9 @@ async function iniciar() {
   filtrarCatalogo();
   mostrarChipEspecial();
   actualizarConsejoInstalar();
+  pintarEstadoRespaldo();
   if (!ajustes.leer("bienvenidaVista", false)) mostrarBienvenida();
+  else setTimeout(recordarRespaldo, 1500); // después de que la app se acomoda
 }
 
 iniciar();
