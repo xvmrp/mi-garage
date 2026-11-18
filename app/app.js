@@ -198,7 +198,8 @@ async function sumarUno(id) {
   const antes = estado.coleccion.get(id) ? structuredClone(estado.coleccion.get(id)) : null;
   const reg = copiaRegistro(id);
   reg.cantidad += 1;
-  navigator.vibrate?.(12); // una vibración cortita en Android (el iPhone no lo permite)
+  // Una vibración cortita en Android (el iPhone no lo permite); solo tras un toque real
+  if (navigator.userActivation?.isActive !== false) navigator.vibrate?.(12);
   if (reg.cantidad === 1) {
     if (!reg.fecha) reg.fecha = hoyLocal();
     reg.deseo = false; // ya lo tienes: sale de la lista de deseos
@@ -1178,6 +1179,41 @@ const enModoApp = () => matchMedia("(display-mode: standalone)").matches || navi
 const esIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) ||
   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+/**
+ * Error de iOS 26: en la app instalada en el iPhone, las capas fijas (barra de pestañas,
+ * fichas) terminan antes del borde de la pantalla, justo por el alto de la barra de estado
+ * (47 pt con notch, 59 pt con Dynamic Island), y queda una franja vacía abajo.
+ * Una "sonda" fija de arriba a abajo muestra dónde cree iOS que termina la pantalla; la
+ * diferencia con el alto real queda en --hueco-ios y el CSS estira la app hasta el borde.
+ * Da 0 en Safari, en Android, en el PC y cuando iOS lo corrija. Solo iPhone: en el iPad las
+ * ventanas pueden ser más chicas que la pantalla a propósito.
+ */
+function ajustarHuecoIOS() {
+  let hueco = 0;
+  if (/iPhone|iPod/.test(navigator.userAgent) && enModoApp()) {
+    const sonda = document.createElement("div");
+    sonda.style.cssText = "position:fixed;top:0;bottom:0;left:0;width:0;visibility:hidden;pointer-events:none";
+    document.body.append(sonda);
+    const alto = sonda.getBoundingClientRect().height;
+    sonda.remove();
+    // En el iPhone, screen.width/height son siempre los de la pantalla vertical
+    const altoReal = innerWidth > innerHeight
+      ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+    const diferencia = Math.round(altoReal - alto);
+    if (alto > 0 && diferencia > 0 && diferencia <= 80) hueco = diferencia; // más que eso es otra cosa
+  }
+  document.documentElement.style.setProperty("--hueco-ios", `${hueco}px`);
+}
+
+/** Medir al abrir, de nuevo cuando iOS se acomoda, al girar y al volver a la app. */
+function vigilarHuecoIOS() {
+  const medir = () => { ajustarHuecoIOS(); setTimeout(ajustarHuecoIOS, 500); };
+  medir();
+  window.addEventListener("resize", medir);
+  window.addEventListener("pageshow", medir);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") medir(); });
+}
+
 let promptInstalar = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
@@ -1226,6 +1262,7 @@ function esqueletos(n) {
 }
 
 async function iniciar() {
+  vigilarHuecoIOS();
   registrarServiceWorker();
   $("#grilla-catalogo").innerHTML = esqueletos(8);
   grillaCatalogo = new Grilla($("#grilla-catalogo"), $("#centinela-catalogo"));

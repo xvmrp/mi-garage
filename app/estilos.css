@@ -57,9 +57,18 @@ html {
   height: 100%; overflow: hidden; overscroll-behavior: none;
 }
 
+/* Error de iOS 26 en la app instalada (pantalla de inicio) con barra de estado translúcida:
+   si la página mide menos que la pantalla, iOS la deja más corta justo por el alto de la
+   barra de estado y queda una franja vacía bajo las pestañas. Una página al menos tan alta
+   como la pantalla recibe el alto completo; min() evita que sobre donde ya está bien.
+   Si aun así queda un hueco, app.js lo mide y lo deja en --hueco-ios para estirar la app. */
+@media (display-mode: standalone) {
+  html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top))); }
+}
+
 body {
   margin: 0;
-  position: fixed; inset: 0;
+  position: fixed; inset: 0 0 calc(0px - var(--hueco-ios, 0px));
   display: flex; flex-direction: column;
   overflow: hidden; overscroll-behavior: none;
   background: var(--fondo);
@@ -97,7 +106,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .marca span { display: block; font-size: 12px; color: var(--barra-texto-2); }
 
 .pestanas {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  position: fixed; left: 0; right: 0; bottom: calc(0px - var(--hueco-ios, 0px)); z-index: 30;
   display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--barra); border-top: 1px solid #2a2a30;
   padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -333,7 +342,7 @@ dialog {
 }
 dialog::backdrop { background: rgba(10, 10, 12, .55); }
 @media (max-width: 600px) {
-  dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; max-height: 92dvh; }
+  dialog { width: 100vw; max-width: 100vw; margin: auto 0 calc(0px - var(--hueco-ios, 0px)); border-radius: 18px 18px 0 0; max-height: 92dvh; }
 }
 .dialogo-cabecera {
   display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
@@ -384,7 +393,8 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 
 /* Visor de fotos a pantalla completa */
 .visor {
-  width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0;
+  width: 100vw; height: calc(100dvh + var(--hueco-ios, 0px)); max-width: 100vw;
+  max-height: calc(100dvh + var(--hueco-ios, 0px)); margin: 0;
   border-radius: 0; background: #000; overflow: hidden;
 }
 .visor-carrusel {
@@ -515,7 +525,7 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 
 /* ---------- Aviso ---------- */
 .aviso {
-  position: fixed; left: 50%; bottom: calc(var(--nav-alto) + env(safe-area-inset-bottom) + 14px);
+  position: fixed; left: 50%; bottom: calc(var(--nav-alto) + env(safe-area-inset-bottom) + 14px - var(--hueco-ios, 0px));
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   background: #26262c; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, .3); transition: opacity .2s, transform .2s; z-index: 50;
