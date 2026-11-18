@@ -108,6 +108,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pestanas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .pestanas button.activa { color: #ff8a47; }
 
+/* En el celular no se muestra la marca: deja más espacio para los autos. La barra queda
+   solo como fondo oscuro detrás de la hora y la batería. */
+@media (max-width: 819px) {
+  .marca { display: none; }
+  .barra-interior { padding: 0; }
+}
+
 @media (min-width: 820px) {
   .pestanas {
     position: static; display: flex; gap: 4px; border: 0; background: none; padding: 0;
@@ -148,6 +155,42 @@ main {
   font-size: 16px; /* en iPhone, menos de 16px hace zoom al tocar */
 }
 .conteo { color: var(--texto-2); font-size: 13px; margin: 6px 2px 12px; }
+
+/* Buscador del catálogo con el botón "Filtros" al lado */
+.fila-busqueda { display: flex; gap: 8px; }
+.fila-busqueda input[type="search"] { flex: 1; min-width: 0; }
+.btn-filtros {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;
+  border-radius: 12px; border: 1px solid var(--borde); background: var(--superficie);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-filtros svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.btn-filtros.activo { border-color: var(--acento); }
+.btn-filtros:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+.insignia-filtros {
+  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+  background: var(--acento); color: var(--acento-texto); font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* Conteo + filtros activos (pastillas que se quitan con un toque) */
+.fila-conteo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 2px 12px; }
+.fila-conteo .conteo { margin: 0; }
+.filtros-activos { display: flex; flex-wrap: wrap; gap: 6px; }
+.filtros-activos:empty { display: none; }
+.filtro-activo {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 8px 0 11px;
+  border-radius: 999px; border: 1px solid var(--acento); background: var(--acento-suave);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.filtro-activo span { font-size: 16px; line-height: 1; color: var(--texto-2); }
+
+/* Aviso cuando los filtros esconden resultados de la búsqueda */
+.pista-filtros {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  background: var(--acento-suave); border-radius: 12px; padding: 10px 12px; margin: -2px 0 14px;
+  font-size: 13.5px;
+}
 
 /* ---------- Tarjetas ---------- */
 .grilla {
@@ -251,6 +294,9 @@ main {
 .boton.secundario:hover { background: var(--superficie-2); }
 .boton.peligro { background: none; color: var(--peligro); border-color: var(--peligro); }
 .boton.peligro:hover { background: var(--peligro); color: #fff; }
+.boton.chico { padding: 6px 12px; font-size: 13.5px; }
+.boton:disabled { opacity: .45; pointer-events: none; }
+.ver-resultados { flex: 1; }
 .fila-botones { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }

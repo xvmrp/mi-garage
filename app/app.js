@@ -377,9 +377,44 @@ function marcarEspecial(valor) {
   radio.checked = true;
 }
 
+/** Que el chip elegido (p. ej. "Exclusivos de tienda") no quede escondido a la derecha. */
+function mostrarChipEspecial() {
+  $('input[name="especial"]:checked')?.closest("label").scrollIntoView({ inline: "nearest", block: "nearest" });
+}
+
+// Filtros que viven en el panel "Filtros" (el orden no cuenta: no esconde autos)
+const SELECTOR_FILTRO = { anio: "#f-anio", linea: "#f-linea", est: "#f-estado" };
+const NOMBRES_ESTADO = { tengo: "Los que tengo", falta: "Me faltan", deseo: "En deseos" };
+const hayFiltros = (f) => !!(f.anio || f.linea || f.est || f.especial);
+
+/** Los filtros activos se ven como pastillas que se quitan con un toque, y su número en el botón. */
+function pintarFiltrosActivos(f) {
+  const activos = [
+    f.anio && ["anio", f.anio],
+    f.linea && ["linea", f.linea],
+    f.est && ["est", NOMBRES_ESTADO[f.est] || f.est],
+  ].filter(Boolean);
+  $("#filtros-activos").innerHTML = activos.map(([clave, texto]) =>
+    `<button type="button" class="filtro-activo" data-quitar-filtro="${clave}" aria-label="Quitar filtro: ${esc(texto)}">
+      ${esc(texto)}<span aria-hidden="true">×</span></button>`).join("");
+  const insignia = $("#insignia-filtros");
+  insignia.textContent = activos.length;
+  insignia.hidden = !activos.length;
+  $("#btn-filtros").classList.toggle("activo", activos.length > 0);
+  $("#btn-quitar-filtros").disabled = !activos.length;
+}
+
+/** Quita los filtros (y el tipo de auto, salvo que se pida lo contrario) sin tocar la búsqueda. */
+function quitarFiltros({ especial = true } = {}) {
+  for (const sel of Object.values(SELECTOR_FILTRO)) $(sel).value = "";
+  if (especial) { marcarEspecial(""); mostrarChipEspecial(); }
+  filtrarDesdeArriba();
+}
+
 function filtrarCatalogo() {
   const f = leerFiltros();
   ajustes.escribir("filtros", { ...f, q: "" });
+  pintarFiltrosActivos(f);
   const terminos = norm(f.q).trim().split(/\s+/).filter(Boolean);
   const anio = f.anio ? Number(f.anio) : null;
   const lista = estado.catalogo.filter((it) => {
@@ -399,6 +434,11 @@ function filtrarCatalogo() {
   else if (f.orden === "antiguos") lista.sort((a, b) => a.y - b.y || a._i - b._i);
   else lista.sort((a, b) => b.y - a.y || a._i - b._i);
 
+  // ¿Cuántos autos con esta búsqueda quedan fuera por los filtros? (p. ej. el año guardado)
+  estado.ocultosPorFiltros = terminos.length && hayFiltros(f)
+    ? estado.catalogo.reduce((n, it) => n + (terminos.every((t) => it._q.includes(t)) ? 1 : 0), 0) - lista.length
+    : 0;
+
   grillaCatalogo.mostrar(lista.map((it) => it.id));
   actualizarConteoCatalogo();
 }
@@ -408,7 +448,21 @@ function actualizarConteoCatalogo() {
   const tengo = ids.reduce((n, id) => n + ((estado.coleccion.get(id)?.cantidad || 0) > 0 ? 1 : 0), 0);
   $("#conteo-catalogo").textContent = ids.length
     ? `${plural(ids.length, "auto", "autos")} · tienes ${fmtNum(tengo)}`
-    : "No hay autos que coincidan con la búsqueda.";
+    : "No hay autos que coincidan.";
+  $("#btn-ver-resultados").textContent = ids.length ? `Ver ${plural(ids.length, "auto", "autos")}` : "Ver resultados";
+
+  const ocultos = estado.ocultosPorFiltros || 0;
+  let pista = "";
+  if (ocultos > 0) {
+    pista = `<span>${ocultos === 1 ? "Hay 1 auto más" : `Hay ${fmtNum(ocultos)} autos más`} con esa búsqueda fuera de tus filtros.</span>
+      <button type="button" class="boton secundario chico" data-quitar-filtros>Buscar en todo el catálogo</button>`;
+  } else if (!ids.length && hayFiltros(leerFiltros())) {
+    pista = `<span>Puede que tus filtros estén escondiendo autos.</span>
+      <button type="button" class="boton secundario chico" data-quitar-filtros>Quitar filtros</button>`;
+  }
+  const el = $("#pista-filtros");
+  el.innerHTML = pista;
+  el.hidden = !pista;
 }
 
 function prepararCatalogo(datos) {
@@ -564,6 +618,17 @@ function renderEstadisticas() {
 
 // ------------------------------------------------------------------ ficha
 
+/**
+ * Evita perder lo escrito al cerrar un diálogo sin querer: tocando fuera, la ×, Esc o el gesto
+ * "atrás". Si hubo cambios, pregunta antes. "Cancelar" ([data-descartar]) cierra sin preguntar.
+ */
+function protegerCambios(dialogo, leerEstado) {
+  const instantanea = () => JSON.stringify(leerEstado());
+  const inicial = instantanea();
+  dialogo.puedeCerrar = (origen) => !!origen?.hasAttribute("data-descartar") || instantanea() === inicial
+    || confirm("Tienes cambios sin guardar. ¿Salir sin guardarlos?");
+}
+
 async function abrirFicha(id) {
   const d = datosDe(id);
   const existe = estado.coleccion.has(id);
@@ -641,7 +706,7 @@ async function abrirFicha(id) {
       <footer class="dialogo-pie ficha-pie">
         ${existe ? `<button type="button" class="boton peligro" data-quitar>Quitar</button>` : ""}
         <span style="flex:1"></span>
-        <button type="button" class="boton secundario" data-cerrar>Cancelar</button>
+        <button type="button" class="boton secundario" data-cerrar data-descartar>Cancelar</button>
         <button type="submit" class="boton">Guardar</button>
       </footer>
     </form>`;
@@ -649,6 +714,7 @@ async function abrirFicha(id) {
   const form = $("#form-ficha");
   let cantidad = r.cantidad;
   let fotoNueva = null, quitarFoto = false;
+  protegerCambios(dialogo, () => [cantidad, !!fotoNueva, quitarFoto, ...new FormData(form)]);
 
   form.addEventListener("click", async (e) => {
     const b = e.target.closest("button");
@@ -674,6 +740,7 @@ async function abrirFicha(id) {
         await quitarRegistro(id);
       }
     } else if (b.hasAttribute("data-editar")) {
+      if (!dialogo.puedeCerrar()) return;
       dialogo.close();
       abrirPersonalizado(id);
     }
@@ -764,6 +831,7 @@ function abrirPersonalizado(idEditar = null) {
     const ref = estado.coleccion.get(idEditar)?.ref || {};
     for (const k of ["n", "y", "l", "s", "t", "co"]) form.elements[k].value = ref[k] ?? "";
   }
+  protegerCambios(dialogo, () => [...new FormData(form)]);
   dialogo.showModal();
 }
 
@@ -945,6 +1013,7 @@ function irAlCatalogo({ linea = "", anio = "", est = "", especial = "" } = {}) {
   posiciones.catalogo = 0;
   mostrarVista("catalogo");
   filtrarDesdeArriba();
+  mostrarChipEspecial();
 }
 
 function enGrilla(e) {
@@ -1007,11 +1076,32 @@ function conectarEventos() {
     if (fila) irAlCatalogo({ linea: fila.dataset.linea, anio: fila.dataset.anio, especial: fila.dataset.especial });
   });
 
-  // Diálogos: cerrar con los botones [data-cerrar] o tocando fuera
+  // Diálogos: cerrar con los botones [data-cerrar] o tocando fuera; si tienen cambios sin
+  // guardar, `puedeCerrar` pregunta antes (ver protegerCambios)
   $$("dialog").forEach((d) => {
     d.addEventListener("click", (e) => {
-      if (e.target === d || e.target.closest("[data-cerrar]")) d.close();
+      const origen = e.target === d ? null : e.target.closest("[data-cerrar]");
+      if (e.target !== d && !origen) return;
+      if (d.puedeCerrar && !d.puedeCerrar(origen)) return;
+      d.close();
     });
+    // Esc en el PC o el gesto "atrás" en Android
+    d.addEventListener("cancel", (e) => {
+      if (d.puedeCerrar && !d.puedeCerrar(null)) e.preventDefault();
+    });
+  });
+
+  // Filtros del catálogo
+  $("#btn-filtros").addEventListener("click", () => $("#dialogo-filtros").showModal());
+  $("#btn-quitar-filtros").addEventListener("click", () => quitarFiltros({ especial: false }));
+  $("#filtros-activos").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-quitar-filtro]");
+    if (!b) return;
+    $(SELECTOR_FILTRO[b.dataset.quitarFiltro]).value = "";
+    filtrarDesdeArriba();
+  });
+  $("#pista-filtros").addEventListener("click", (e) => {
+    if (e.target.closest("[data-quitar-filtros]")) quitarFiltros();
   });
 
   // Fotos de la wiki que no cargan -> marcador "Sin foto"
@@ -1174,6 +1264,7 @@ async function iniciar() {
   actualizarConteos();
   mostrarVista(ajustes.leer("vista", "catalogo"));
   filtrarCatalogo();
+  mostrarChipEspecial();
   actualizarConsejoInstalar();
   if (!ajustes.leer("bienvenidaVista", false)) mostrarBienvenida();
 }

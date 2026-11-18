@@ -45,7 +45,7 @@
         </button>
         <button type="button" data-vista="coleccion">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 16V12l3-5h9l4 5h2v4"/></svg>
-          <span>Mi colección</span>
+          <span>Colección</span>
         </button>
         <button type="button" data-vista="deseos">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>
@@ -68,7 +68,14 @@
     <!-- CATÁLOGO -->
     <section id="vista-catalogo" class="vista activa" aria-label="Catálogo">
       <div class="herramientas">
-        <input type="search" id="buscar" placeholder="Buscar nombre, Toy #, serie o color…" autocomplete="off" aria-label="Buscar en el catálogo">
+        <div class="fila-busqueda">
+          <input type="search" id="buscar" placeholder="Buscar nombre o Toy #" autocomplete="off" aria-label="Buscar en el catálogo">
+          <button type="button" class="btn-filtros" id="btn-filtros" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+            <span>Filtros</span>
+            <span class="insignia-filtros" id="insignia-filtros" hidden></span>
+          </button>
+        </div>
         <div class="chips-filtro" role="radiogroup" aria-label="Tipo de auto">
           <label><input type="radio" name="especial" value="" checked><span>Todos</span></label>
           <label><input type="radio" name="especial" value="th"><span><i class="punto e-th"></i>Treasure Hunt</span></label>
@@ -76,23 +83,12 @@
           <label><input type="radio" name="especial" value="nuevo"><span><i class="punto e-nuevo"></i>Modelos nuevos</span></label>
           <label><input type="radio" name="especial" value="exclusivo"><span><i class="punto e-tienda"></i>Exclusivos de tienda</span></label>
         </div>
-        <div class="filtros">
-          <select id="f-anio" aria-label="Año"><option value="">Todos los años</option></select>
-          <select id="f-linea" aria-label="Línea"><option value="">Todas las líneas</option></select>
-          <select id="f-estado" aria-label="Mostrar">
-            <option value="">Todos</option>
-            <option value="tengo">Los que tengo</option>
-            <option value="falta">Me faltan</option>
-            <option value="deseo">En deseos</option>
-          </select>
-          <select id="f-orden" aria-label="Ordenar">
-            <option value="anio">Más nuevos primero</option>
-            <option value="antiguos">Más antiguos primero</option>
-            <option value="nombre">Nombre A–Z</option>
-          </select>
-        </div>
       </div>
-      <p class="conteo" id="conteo-catalogo">Cargando catálogo…</p>
+      <div class="fila-conteo">
+        <p class="conteo" id="conteo-catalogo">Cargando catálogo…</p>
+        <div class="filtros-activos" id="filtros-activos"></div>
+      </div>
+      <p class="pista-filtros" id="pista-filtros" hidden></p>
       <div class="grilla" id="grilla-catalogo"></div>
       <div class="centinela" id="centinela-catalogo"></div>
     </section>
@@ -208,6 +204,37 @@
     </div>
   </dialog>
 
+  <!-- Filtros del catálogo -->
+  <dialog id="dialogo-filtros" aria-labelledby="filtros-titulo">
+    <div class="formulario">
+      <header class="dialogo-cabecera">
+        <h2 id="filtros-titulo">Filtros</h2>
+        <button type="button" class="cerrar" data-cerrar aria-label="Cerrar">×</button>
+      </header>
+      <label class="campo"><span>Año</span><select id="f-anio"><option value="">Todos los años</option></select></label>
+      <label class="campo"><span>Línea</span><select id="f-linea"><option value="">Todas las líneas</option></select></label>
+      <label class="campo"><span>Mostrar</span>
+        <select id="f-estado">
+          <option value="">Todos</option>
+          <option value="tengo">Los que tengo</option>
+          <option value="falta">Me faltan</option>
+          <option value="deseo">En deseos</option>
+        </select>
+      </label>
+      <label class="campo"><span>Ordenar</span>
+        <select id="f-orden">
+          <option value="anio">Más nuevos primero</option>
+          <option value="antiguos">Más antiguos primero</option>
+          <option value="nombre">Nombre A–Z</option>
+        </select>
+      </label>
+      <footer class="dialogo-pie">
+        <button type="button" class="boton secundario" id="btn-quitar-filtros">Quitar filtros</button>
+        <button type="button" class="boton ver-resultados" id="btn-ver-resultados" data-cerrar>Ver autos</button>
+      </footer>
+    </div>
+  </dialog>
+
   <!-- Auto personalizado -->
   <dialog id="dialogo-personalizado" aria-labelledby="personalizado-titulo">
     <form id="form-personalizado" class="formulario">
@@ -228,7 +255,7 @@
       <label class="campo"><span>Color</span><input name="co" maxlength="60"></label>
       <datalist id="lista-lineas"></datalist>
       <footer class="dialogo-pie">
-        <button type="button" class="boton secundario" data-cerrar>Cancelar</button>
+        <button type="button" class="boton secundario" data-cerrar data-descartar>Cancelar</button>
         <button type="submit" class="boton">Guardar</button>
       </footer>
     </form>
