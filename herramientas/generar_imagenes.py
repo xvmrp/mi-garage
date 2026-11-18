@@ -17,7 +17,12 @@ from pathlib import Path
 APP = Path(__file__).resolve().parent.parent / "app"
 ICONOS = APP / "iconos"
 ARRANQUE = ICONOS / "arranque"
-FONDO_ARRANQUE = (22, 22, 26)  # mismo color que la barra de la app
+FONDO_ARRANQUE = (29, 32, 36)  # asfalto: mismo color que la barra de la app (#1d2024)
+
+ASFALTO = (29, 32, 36)
+AMARILLO = (245, 196, 0)    # pintura de demarcación
+PLASTICO = (238, 240, 241)  # burbuja del blíster
+LLANTA = (201, 206, 211)
 
 # iPhones en vertical: (ancho CSS, alto CSS, densidad de píxeles)
 IPHONES = [
@@ -52,47 +57,50 @@ def mezclar(base, color, a):
     return tuple(base[i] * (1 - a) + color[i] * a for i in range(3)) + (max(base[3], a),)
 
 
-def dist_segmento(px, py, ax, ay, bx, by):
-    dx, dy = bx - ax, by - ay
-    t = max(0, min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
-    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
-
-
 def dentro_redondeado(x, y, r):
     cx = min(max(x, r), 1 - r)
     cy = min(max(y, r), 1 - r)
     return math.hypot(x - cx, y - cy) <= r
 
 
+def en_rect(x, y, x0, y0, ancho, alto, r):
+    """¿Está (x, y) dentro del rectángulo redondeado? Medidas en la escala 0-100 de icono.svg."""
+    cx = min(max(x, x0 + r), x0 + ancho - r)
+    cy = min(max(y, y0 + r), y0 + alto - r)
+    return math.hypot(x - cx, y - cy) <= r
+
+
 def muestra(x, y, maskable):
-    """Color RGBA del ícono en el punto (x, y) de 0 a 1."""
-    if maskable or dentro_redondeado(x, y, 0.22):
-        t = y
-        c = (255 * (1 - t) + 227 * t, 122 * (1 - t) + 38 * t, 26 * (1 - t) + 27 * t, 1.0)
-    else:
+    """Color RGBA del ícono en el punto (x, y) de 0 a 1. Es el mismo dibujo que app/iconos/icono.svg:
+    un blíster amarillo (cartón con pestaña y agujero) sobre asfalto, con una rueda en la burbuja."""
+    if not (maskable or dentro_redondeado(x, y, 0.22)):
         return (0, 0, 0, 0.0)
+    c = ASFALTO + (1.0,)
     escala = 0.78 if maskable else 1.0  # zona segura para íconos "maskable"
-    x = 0.5 + (x - 0.5) / escala
-    y = 0.5 + (y - 0.5) / escala
-    for yy, x0, x1 in ((0.40, 0.10, 0.30), (0.52, 0.04, 0.26), (0.64, 0.12, 0.30)):
-        if dist_segmento(x, y, x0, yy, x1, yy) <= 0.028:
-            c = mezclar(c, (255, 244, 230), 0.95)
-    cx, cy = 0.58, 0.52
-    d = math.hypot(x - cx, y - cy)
-    if d <= 0.31:
-        c = mezclar(c, (28, 28, 34), 1)
-    if d <= 0.205:
-        c = mezclar(c, (214, 219, 226), 1)
-    if d <= 0.175:
-        c = mezclar(c, (120, 128, 140), 1)
-        for k in range(5):
-            a = -math.pi / 2 + k * 2 * math.pi / 5
-            if dist_segmento(x, y, cx, cy, cx + 0.17 * math.cos(a), cy + 0.17 * math.sin(a)) <= 0.032:
-                c = mezclar(c, (236, 239, 243), 1)
-    if d <= 0.06:
-        c = mezclar(c, (28, 28, 34), 1)
-    if d <= 0.025:
-        c = mezclar(c, (255, 106, 0), 1)
+    x = (0.5 + (x - 0.5) / escala) * 100
+    y = (0.5 + (y - 0.5) / escala) * 100
+    if en_rect(x, y, 39, 16, 22, 20, 5) or en_rect(x, y, 27, 27, 46, 59, 6):
+        c = mezclar(c, AMARILLO, 1)                       # pestaña y cartón
+    if en_rect(x, y, 45, 20.5, 10, 3, 1.5):
+        c = mezclar(c, ASFALTO, 1)                        # agujero para colgar
+    if en_rect(x, y, 32, 33, 36, 33, 5):
+        c = mezclar(c, PLASTICO, 1)                       # burbuja
+        if en_rect(x, y, 34, 47, 32, 10, 4) or en_rect(x, y, 42, 40, 16, 10, 5):
+            c = mezclar(c, ASFALTO, 1)                    # carrocería y techo
+        if en_rect(x, y, 45, 42.5, 10, 4.5, 2):
+            c = mezclar(c, PLASTICO, 1)                   # ventana
+        for rx in (41.5, 58.5):                           # ruedas
+            d = math.hypot(x - rx, y - 57)
+            if d <= 5.8:
+                c = mezclar(c, PLASTICO, 1)
+            if d <= 4.6:
+                c = mezclar(c, ASFALTO, 1)
+            if d <= 1.9:
+                c = mezclar(c, LLANTA, 1)
+    if en_rect(x, y, 33, 71, 19, 6, 3):
+        c = mezclar(c, ASFALTO, 1)                        # número impreso
+    if en_rect(x, y, 33, 80, 29, 2.6, 1.3):
+        c = mezclar(c, ASFALTO, 0.45)                     # nombre impreso
     return c
 
 

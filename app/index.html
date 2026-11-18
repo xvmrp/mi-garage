@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Mi Garage</title>
   <meta name="description" content="Registro personal de mi colección de autos Hot Wheels">
-  <meta name="theme-color" content="#16161a">
+  <meta name="theme-color" content="#1d2024">
+  <!-- Las dos letras que más se ven, para que no "salten" al abrir -->
+  <link rel="preload" href="fuentes/barlow-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fuentes/barlow-condensed-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="iconos/icono.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
@@ -111,8 +114,8 @@
       <div class="grilla" id="grilla-coleccion"></div>
       <div class="centinela" id="centinela-coleccion"></div>
       <div class="vacio" id="vacio-coleccion" hidden>
-        <p><strong>Tu colección está vacía.</strong></p>
-        <p>Busca un auto en el <button type="button" class="enlace" data-ir="catalogo">Catálogo</button> y toca <b>+</b> para agregarlo.</p>
+        <p><strong>Tu garage está vacío.</strong></p>
+        <p>Busca un auto en el <button type="button" class="enlace" data-ir="catalogo">Catálogo</button> y toca <b>+</b> para estacionarlo aquí.</p>
       </div>
     </section>
 
@@ -173,7 +176,7 @@
         <p class="ayuda">Datos y fotos de la <a href="https://hotwheels.fandom.com/" target="_blank" rel="noopener">Hot Wheels Wiki</a> (texto bajo licencia <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA</a>). Se actualiza solo cada semana con los autos nuevos. Las fotos que ya viste quedan guardadas para verlas sin internet.</p>
       </div>
       <div class="panel peligro">
-        <h2>Zona peligrosa</h2>
+        <h2>Borrar datos</h2>
         <p class="ayuda">Borra toda tu colección de este navegador. Descarga un respaldo antes.</p>
         <button type="button" class="boton peligro" id="btn-borrar-todo">Borrar mi colección</button>
       </div>
@@ -191,8 +194,8 @@
   <dialog id="bienvenida" class="bienvenida" aria-labelledby="bienvenida-titulo">
     <div class="bienvenida-cuerpo">
       <img src="iconos/icono.svg" width="72" height="72" alt="">
-      <h2 id="bienvenida-titulo">¡Hola! Esto es Mi Garage</h2>
-      <p class="ayuda">Tu colección de Hot Wheels, siempre en el bolsillo.</p>
+      <h2 id="bienvenida-titulo">Mi Garage</h2>
+      <p class="ayuda">Registra los Hot Wheels que tienes y los que andas buscando.</p>
       <ol class="pasos">
         <li><span class="num">1</span><div><strong>Busca</strong> por nombre, serie o por el <b>Toy #</b> que trae el blíster por detrás.</div></li>
         <li><span class="num">2</span><div>Toca <b class="mini-mas">+</b> para agregarlo a tu colección, o <b>♥</b> si lo andas buscando.</div></li>

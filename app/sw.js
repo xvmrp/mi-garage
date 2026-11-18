@@ -23,6 +23,12 @@ const ARCHIVOS = [
   "iconos/icono.svg",
   "iconos/icono-192.png",
   "iconos/icono-512.png",
+  "fuentes/barlow-400.woff2",
+  "fuentes/barlow-600.woff2",
+  "fuentes/barlow-700.woff2",
+  "fuentes/barlow-condensed-500.woff2",
+  "fuentes/barlow-condensed-600.woff2",
+  "fuentes/barlow-condensed-700.woff2",
   "datos/catalogo.json",
 ];
 

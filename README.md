@@ -107,6 +107,7 @@ python importador/importar.py --desde 2020 --hasta 2027
 | `actualizar-catalogo.bat` | Descarga el catálogo actualizado |
 | `app/` | La app (HTML, CSS y JavaScript, sin dependencias) |
 | `app/datos/catalogo.json` | El catálogo generado |
+| `app/fuentes/` | Letra Barlow, guardada dentro de la app para que funcione sin internet (licencia OFL en `OFL.txt`) |
 | `importador/importar.py` | Lee la wiki y genera el catálogo (solo Python estándar) |
 | `importador/cache/` | Copia de las páginas descargadas de la wiki (no se sube a GitHub) |
 | `.github/workflows/publicar.yml` | Publica `app/` en GitHub Pages en cada push |

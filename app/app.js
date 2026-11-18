@@ -191,7 +191,7 @@ async function quitarRegistro(id, { silencioso = false } = {}) {
   if (reg?.tieneFoto) { await db.borrarFoto(id); olvidarFotoPropia(id); }
   estado.coleccion.delete(id);
   alCambiar(id);
-  if (!silencioso) avisar("Quitado de tu colección");
+  if (!silencioso) avisar("Quitado de tu garage");
 }
 
 async function sumarUno(id) {
@@ -206,7 +206,7 @@ async function sumarUno(id) {
   }
   await persistir(reg);
   const nombre = datosDe(id).n;
-  avisar(reg.cantidad === 1 ? `Agregado: ${nombre}` : `Ahora tienes ${reg.cantidad}: ${nombre}`, {
+  avisar(reg.cantidad === 1 ? `Al garage: ${nombre}` : `Ahora tienes ${reg.cantidad}: ${nombre}`, {
     deshacer: async () => {
       if (antes) { await db.guardar(antes); estado.coleccion.set(id, antes); alCambiar(id); }
       else await quitarRegistro(id, { silencioso: true });
@@ -218,7 +218,7 @@ async function alternarDeseo(id) {
   const reg = copiaRegistro(id);
   reg.deseo = !reg.deseo;
   await persistir(reg);
-  avisar(reg.deseo ? "Agregado a tu lista de deseos" : "Quitado de tu lista de deseos");
+  avisar(reg.deseo ? "Anotado en tus deseos" : "Quitado de tus deseos");
 }
 
 // Fotos propias (guardadas en IndexedDB) -> URLs temporales
@@ -249,9 +249,22 @@ async function reducirImagen(archivo, max = 1200) {
 
 // ------------------------------------------------------------------ tarjetas
 
+/** "HW Dream Garage 1/5" */
 function textoSerie(d) {
   const serie = d.s || d.sec || "";
-  return [d.y, serie && d.sn ? `${serie} ${d.sn}` : serie].filter(Boolean).join(" · ");
+  return serie && d.sn ? `${serie} ${d.sn}` : serie;
+}
+
+/** Número de colección para mostrar en grande ("001"); "No #", "N/A"… no se muestran. */
+const numeroDe = (d) => (/^\d+$/.test(d.c || "") ? d.c : "");
+
+/** Fila del número grande y el año, igual en la tarjeta y en la ficha. */
+function filaNumeroHTML(d) {
+  const numero = numeroDe(d);
+  return `<div class="fila-numero">
+    ${numero ? `<span class="numero" title="Número de colección">${esc(numero)}</span>` : ""}
+    ${d.y ? `<span class="anio">${esc(d.y)}</span>` : ""}
+  </div>`;
 }
 
 function fotoHTML(p) {
@@ -265,7 +278,7 @@ function tarjetaHTML(id, { fotosPropias = false } = {}) {
   const reg = estado.coleccion.get(id);
   const cant = reg?.cantidad || 0;
   const deseo = !!reg?.deseo;
-  const codigos = [d.c && `#${d.c}`, d.t].filter(Boolean).join(" · ");
+  const serie = textoSerie(d);
   const propia = fotosPropias && reg?.tieneFoto;
   const chips = [
     d.l && d.l !== "Mainline" && `<span class="chip e-linea">${esc(d.l)}</span>`,
@@ -276,9 +289,10 @@ function tarjetaHTML(id, { fotosPropias = false } = {}) {
     <button type="button" class="tarjeta-abrir" data-accion="abrir" aria-label="Ver ficha de ${esc(d.n)}">
       <div class="foto"${propia ? " data-foto-propia" : ""}>${fotoHTML(d.p || d.p2)}</div>
       <div class="info">
+        ${filaNumeroHTML(d)}
         <h3>${esc(d.n)}</h3>
-        <p>${esc(textoSerie(d))}</p>
-        ${codigos ? `<p class="codigos">${esc(codigos)}</p>` : ""}
+        ${serie ? `<p>${esc(serie)}</p>` : ""}
+        ${d.t ? `<p class="codigos" title="Toy #">${esc(d.t)}</p>` : ""}
       </div>
     </button>
     ${chips.length ? `<div class="etiquetas">${chips.join("")}</div>` : ""}
@@ -449,7 +463,7 @@ function actualizarConteoCatalogo() {
   const ids = grillaCatalogo.ids;
   const tengo = ids.reduce((n, id) => n + ((estado.coleccion.get(id)?.cantidad || 0) > 0 ? 1 : 0), 0);
   $("#conteo-catalogo").textContent = ids.length
-    ? `${plural(ids.length, "auto", "autos")} · tienes ${fmtNum(tengo)}`
+    ? `${plural(ids.length, "auto", "autos")} (tienes ${fmtNum(tengo)})`
     : "No hay autos que coincidan.";
   $("#btn-ver-resultados").textContent = ids.length ? `Ver ${plural(ids.length, "auto", "autos")}` : "Ver resultados";
 
@@ -492,7 +506,7 @@ function prepararCatalogo(datos) {
   $("#lista-lineas").innerHTML = lineas.map((l) => `<option value="${esc(l)}">`).join("");
 
   const generado = datos.generado ? new Date(datos.generado).toLocaleDateString("es") : "?";
-  $("#info-catalogo").textContent = `${fmtNum(datos.total)} autos de ${anios.at(-1)} a ${anios[0]} · actualizado el ${generado}.`;
+  $("#info-catalogo").textContent = `${fmtNum(datos.total)} autos de ${anios.at(-1)} a ${anios[0]}. Actualizado el ${generado}.`;
 }
 
 // ------------------------------------------------------------------ colección y deseos
@@ -543,7 +557,7 @@ function resumenColeccion() {
 function actualizarConteos() {
   const { modelos, unidades, gasto, deseos } = resumenColeccion();
   $("#conteo-coleccion").textContent = modelos
-    ? `${plural(modelos, "modelo", "modelos")} · ${plural(unidades, "unidad", "unidades")}${gasto ? ` · ${fmtPrecio(gasto)} invertidos` : ""}`
+    ? `${plural(modelos, "modelo", "modelos")}, ${plural(unidades, "unidad", "unidades")}${gasto ? `, ${fmtPrecio(gasto)} invertidos` : ""}`
     : "";
   $("#vacio-coleccion").hidden = modelos > 0;
   $("#conteo-deseos").textContent = deseos ? `${plural(deseos, "auto", "autos")} en tu lista de deseos` : "";
@@ -560,7 +574,7 @@ function filaProgreso(nombre, tengo, total, filtro) {
       title="${esc(`${nombre}: tienes ${tengo} de ${total} (${pctTxt}%)`)}">
     <span class="nombre">${esc(nombre)}</span>
     <span class="pista"><span class="relleno" style="width:${tengo ? `max(${pct.toFixed(2)}%, 4px)` : "0"}"></span></span>
-    <span class="cifra">${fmtNum(tengo)} / ${fmtNum(total)} · ${pctTxt}%</span>
+    <span class="cifra">${fmtNum(tengo)} de ${fmtNum(total)} (${pctTxt}%)</span>
   </button>`;
 }
 
@@ -653,8 +667,9 @@ async function abrirFicha(id) {
     <form id="form-ficha" novalidate>
       <header class="dialogo-cabecera">
         <div>
+          ${filaNumeroHTML(d)}
           <h2 id="ficha-titulo">${esc(d.n)}</h2>
-          <p class="sub">${esc([d.l, textoSerie(d)].filter(Boolean).join(" · "))}</p>
+          <p class="sub">${esc([textoSerie(d), d.l].filter(Boolean).join(", "))}</p>
           ${etiquetas.length ? `<div class="chips-ficha">${etiquetas.map((e) =>
             `<span class="chip ${ETIQUETAS[e].clase}">${esc(ETIQUETAS[e].largo)}</span>`).join("")}</div>` : ""}
         </div>
@@ -674,7 +689,7 @@ async function abrirFicha(id) {
         ${fotos.length > 1 ? `<div class="puntos">${fotos.map((f, i) => `
           <button type="button" data-ir-foto="${i}" class="${i === 0 ? "activa" : ""}" aria-label="Foto ${i + 1}: ${esc(f.tipo)}"></button>`).join("")}</div>` : ""}
         <dl class="datos">${filas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-        ${d.w ? `<a class="wiki-link" href="${esc(WIKI + d.w)}" target="_blank" rel="noopener">Ver en la Hot Wheels Wiki ↗</a>` : ""}
+        ${d.w ? `<a class="wiki-link" href="${esc(WIKI + d.w)}" target="_blank" rel="noopener">Ver en la Hot Wheels Wiki</a>` : ""}
         ${r.personalizado ? `<p><button type="button" class="enlace" data-editar>Editar datos del auto</button></p>` : ""}
 
         <fieldset class="registro">
@@ -813,7 +828,7 @@ function abrirVisor(fotos, inicio) {
     <div class="visor-carrusel" id="visor-carrusel">
       ${fotos.map((f) => `<figure class="visor-diapo">
         <img src="${esc(f.grande)}" alt="${esc(f.tipo)}" referrerpolicy="no-referrer">
-        <figcaption>${esc(f.tipo)} · toca para acercar</figcaption></figure>`).join("")}
+        <figcaption>${esc(f.tipo)}. Toca para acercar</figcaption></figure>`).join("")}
     </div>
     <button type="button" class="cerrar visor-cerrar" data-cerrar aria-label="Cerrar">×</button>`;
   visor.showModal();
