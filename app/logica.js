@@ -200,12 +200,13 @@ export const escalaTexto = (pxCuerpo) => (pxCuerpo > 0 ? Math.min(1.5, Math.max(
 // ------------------------------------------------------------------ versión
 
 /**
- * La publicación reemplaza __VERSION__ por "<commit>-<AAAAMMDDhhmm>" (hora UTC).
- * Devuelve { commit, fecha } o null si es la copia de desarrollo.
+ * La publicación reemplaza __VERSION__ por "<número>-<commit>-<AAAAMMDDhhmm>" (hora UTC), p. ej.
+ * "1.12-e3c6469-202611181609". El número lo calcula herramientas/novedades.py. Las publicaciones
+ * anteriores no traían número. Devuelve { numero, commit, fecha } o null si es la copia de desarrollo.
  */
 export function leerVersion(v) {
-  const m = /^([0-9a-f]{7,40})-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(v || "");
+  const m = /^(?:(\d+\.\d+)-)?([0-9a-f]{7,40})-(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(v || "");
   if (!m) return null;
-  const [, commit, a, mes, d, h, min] = m;
-  return { commit, fecha: new Date(Date.UTC(+a, +mes - 1, +d, +h, +min)) };
+  const [, numero = null, commit, a, mes, d, h, min] = m;
+  return { numero, commit, fecha: new Date(Date.UTC(+a, +mes - 1, +d, +h, +min)) };
 }

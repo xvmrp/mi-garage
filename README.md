@@ -20,6 +20,8 @@ se puede instalar como app y funciona sin internet.
 - **Ajustes**: respaldo, exportar a Excel, moneda y la guía de bienvenida.
 - **Siempre al día**: el catálogo se actualiza solo cada semana, y cuando hay una versión nueva
   la app avisa con un botón **Actualizar**. Las fotos que ya viste quedan guardadas para verlas sin internet.
+  Cada publicación tiene su número (1.0 fue la primera, y cada cambio suma uno); en Ajustes ves la
+  versión que tienes y qué trajo cada una.
 
 ## Usarla en el PC
 
@@ -116,7 +118,7 @@ python importador/importar.py --desde 2020 --hasta 2027
 | `.github/workflows/publicar.yml` | Publica `app/` en GitHub Pages en cada push |
 | `.github/workflows/actualizar-catalogo.yml` | Actualiza el catálogo cada lunes y lo publica |
 | `herramientas/generar_imagenes.py` | Genera los íconos y las pantallas de arranque del iPhone |
-| `herramientas/novedades.py` | Arma la lista de "Versión y novedades" al publicar |
+| `herramientas/novedades.py` | Al publicar, calcula el número de versión y arma la lista de "Versión y novedades" |
 | `pruebas/` y `package.json` | Pruebas automáticas (se corren con `npm test`) |
 
 ## Pruebas

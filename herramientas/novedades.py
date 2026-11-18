@@ -1,18 +1,34 @@
 """
 Genera app/datos/novedades.json con los últimos cambios (los mensajes de los commits), para la
-sección "Versión y novedades" de Ajustes. Lo corre la publicación en GitHub; en el PC no hace
+sección "Versión y novedades" de Ajustes, y escribe en la salida el número de la versión actual
+("1.12"), que la publicación pone en la app. Lo corre la publicación en GitHub; en el PC no hace
 falta (el archivo no se sube al repositorio).
+
+Número de versión: cada cambio publicado en main suma uno, contando desde el primero, que fue la
+1.0. Por eso la publicación baja toda la historia (fetch-depth: 0): con una parte, la cuenta
+saldría mal.
 
 Uso:
     python herramientas/novedades.py
 """
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 SALIDA = Path(__file__).resolve().parent.parent / "app" / "datos" / "novedades.json"
 MAXIMO = 15
 CATALOGO = "Actualizar catálogo desde la Hot Wheels Wiki"
+MAYOR = 1  # para pasar a la 2.0 algún día, habría que contar desde ese cambio
+
+
+def git(*args):
+    return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
+
+
+def numero_version(posicion):
+    """El primer cambio de la historia es la 1.0, el segundo la 1.1…"""
+    return f"{MAYOR}.{posicion - 1}"
 
 
 def detalle(cuerpo):
@@ -41,22 +57,22 @@ def detalle(cuerpo):
 
 
 def main():
-    salida = subprocess.run(
-        ["git", "log", f"-{MAXIMO}", "--format=%h%x1f%cI%x1f%s%x1f%b%x1e"],
-        capture_output=True, text=True, check=True,
-    ).stdout
+    # --first-parent: la línea de main, aunque algún día entre un "merge"
+    total = int(git("rev-list", "--count", "--first-parent", "HEAD"))
+    salida = git("log", "--first-parent", f"-{MAXIMO}", "--format=%h%x1f%cI%x1f%s%x1f%b%x1e")
+    registros = [r for r in salida.split("\x1e") if r.strip()]
     novedades = []
-    for registro in salida.split("\x1e"):
-        if not registro.strip():
-            continue
+    for i, registro in enumerate(registros):  # del más nuevo al más antiguo
         commit, fecha, titulo, cuerpo = registro.strip("\n").split("\x1f")
+        numero = numero_version(total - i)
         if titulo == CATALOGO:
-            novedades.append({"commit": commit, "fecha": fecha,
-                              "titulo": "Catálogo actualizado con los autos nuevos de la wiki", "detalle": []})
+            titulo, items = "Catálogo actualizado con los autos nuevos de la wiki", []
         else:
-            novedades.append({"commit": commit, "fecha": fecha, "titulo": titulo, "detalle": detalle(cuerpo)})
+            items = detalle(cuerpo)
+        novedades.append({"numero": numero, "commit": commit, "fecha": fecha, "titulo": titulo, "detalle": items})
     SALIDA.write_text(json.dumps(novedades, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"ok {SALIDA.name}: {len(novedades)} cambios")
+    print(f"ok {SALIDA.name}: {len(novedades)} cambios", file=sys.stderr)
+    print(numero_version(total))  # lo único en la salida: la publicación lo pone en la app
 
 
 if __name__ == "__main__":

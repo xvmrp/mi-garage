@@ -1420,8 +1420,9 @@ function mostrarFalloCatalogo() {
 /** En Ajustes: qué versión es y cuánto tardó en cargar el catálogo en este dispositivo. */
 function pintarVersion() {
   const v = leerVersion(VERSION);
+  // El código del commit sigue en VERSION (y en los reportes de error), pero no se muestra
   const partes = [v
-    ? `Versión ${v.commit}, del ${v.fecha.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.`
+    ? `Versión ${v.numero || v.commit}, del ${v.fecha.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.`
     : "Copia de desarrollo (sin publicar)."];
   if (estado.msCarga) partes.push(`En este dispositivo, el catálogo se cargó en ${fmtNum(estado.msCarga)} ms.`);
   $("#info-version").textContent = partes.join(" ");
@@ -1444,7 +1445,7 @@ async function pintarNovedades() {
   const el = $("#lista-novedades");
   el.innerHTML = lista.map((n) => {
     const fecha = new Date(n.fecha).toLocaleDateString("es", { day: "numeric", month: "long" });
-    const cabeza = `<strong>${esc(n.titulo)}</strong> <span class="fecha">${esc(fecha)}</span>`;
+    const cabeza = `${n.numero ? `<span class="numero-version">${esc(n.numero)}</span> ` : ""}<strong>${esc(n.titulo)}</strong> <span class="fecha">${esc(fecha)}</span>`;
     return n.detalle?.length
       ? `<li><details><summary>${cabeza}</summary><ul>${n.detalle.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></details></li>`
       : `<li>${cabeza}</li>`;
@@ -1460,7 +1461,9 @@ function revisarActualizacion() {
   if (!anterior || anterior === VERSION) return false;
   leerNovedades().then((lista) => {
     const titulo = lista[0]?.titulo;
-    avisar(titulo ? `Mi Garage se actualizó: ${titulo}` : "Mi Garage se actualizó", {
+    const numero = leerVersion(VERSION).numero;
+    const aviso = numero ? `Mi Garage se actualizó a la ${numero}` : "Mi Garage se actualizó";
+    avisar(titulo ? `${aviso}: ${titulo}` : aviso, {
       accion: {
         texto: "Ver novedades",
         fn: () => { mostrarVista("ajustes"); $("#panel-novedades").scrollIntoView({ block: "start" }); },

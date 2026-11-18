@@ -178,8 +178,12 @@ test("escala de letra del iPhone", () => {
 });
 
 test("versión publicada", () => {
-  const v = leerVersion("c9b19f1-202611181222");
-  assert.equal(v.commit, "c9b19f1");
-  assert.equal(v.fecha.toISOString(), "2026-11-18T12:22:00.000Z");
+  const v = leerVersion("1.12-e3c6469-202611181609");
+  assert.equal(v.numero, "1.12");
+  assert.equal(v.commit, "e3c6469");
+  assert.equal(v.fecha.toISOString(), "2026-11-18T16:09:00.000Z");
+  const antigua = leerVersion("c9b19f1-202611181222"); // publicada antes de que hubiera números
+  assert.equal(antigua.numero, null);
+  assert.equal(antigua.commit, "c9b19f1");
   assert.equal(leerVersion("__VERSION__"), null);
 });

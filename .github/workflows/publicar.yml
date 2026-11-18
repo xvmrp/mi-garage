@@ -43,15 +43,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main # lo último de main (incluye el catálogo recién actualizado)
-          fetch-depth: 20 # los últimos cambios, para "Versión y novedades"
+          fetch-depth: 0 # toda la historia: el número de versión cuenta todos los cambios
 
-      # Cada publicación lleva una versión distinta: así la app detecta que hay
-      # una versión nueva, ofrece "Actualizar" y la muestra en Ajustes.
-      - name: Marcar la versión de la app
-        run: sed -i "s/__VERSION__/$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M)/" app/sw.js app/app.js
-
-      - name: Anotar las novedades
-        run: python3 herramientas/novedades.py
+      # Cada publicación lleva una versión distinta ("1.12-<commit>-<fecha>"): así la app
+      # detecta que hay una versión nueva, ofrece "Actualizar" y la muestra en Ajustes.
+      # novedades.py arma la lista de novedades y entrega el número ("1.12").
+      - name: Anotar las novedades y marcar la versión de la app
+        run: |
+          NUMERO=$(python3 herramientas/novedades.py)
+          echo "Versión $NUMERO"
+          sed -i "s/__VERSION__/$NUMERO-$(git rev-parse --short HEAD)-$(date -u +%Y%m%d%H%M)/" app/sw.js app/app.js
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
