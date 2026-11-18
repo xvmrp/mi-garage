@@ -1048,6 +1048,11 @@ function conectarEventos() {
   ["#f-anio", "#f-linea", "#f-estado", "#f-orden"].forEach((s) => $(s).addEventListener("change", filtrarDesdeArriba));
   $$('input[name="especial"]').forEach((r) => r.addEventListener("change", filtrarDesdeArriba));
 
+  // iPhone: bloquear el zoom con dos dedos (Safari no respeta "user-scalable=no")
+  for (const tipo of ["gesturestart", "gesturechange"]) {
+    document.addEventListener(tipo, (e) => e.preventDefault(), { passive: false });
+  }
+
   // Visor: tocar la foto la acerca (y se recorre con el dedo); tocar de nuevo la aleja
   $("#visor").addEventListener("click", (e) => {
     const img = e.target.closest(".visor-diapo img");

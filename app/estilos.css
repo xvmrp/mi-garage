@@ -95,9 +95,10 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Pellizcar para acercar sí se puede (accesibilidad: WCAG 1.4.4). Solo se quita el zoom por
-   doble toque, que hacía saltar la página, y la espera de 300 ms al tocar. */
-* { touch-action: manipulation; }
+/* Sin zoom por pellizco ni por doble toque, para que la app no se mueva sin querer (decisión
+   tomada a propósito). Para leer más grande, la letra sigue el "Tamaño del texto" del iPhone;
+   el visor de fotos tiene su propio zoom al tocar la foto. */
+* { touch-action: pan-x pan-y; }
 
 /* Texto solo para lectores de pantalla */
 .solo-lectores {
