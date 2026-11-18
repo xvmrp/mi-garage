@@ -4,11 +4,12 @@
   --superficie: #ffffff;
   --superficie-2: #efede9;
   --borde: #e1ded8;
+  --borde-control: #8f8b95; /* bordes de campos y botones de ícono: 3:1 sobre blanco */
   --texto: #1c1b1f;
   --texto-2: #57545c;
-  --texto-3: #85828b;
-  --acento: #d9480f;
-  --acento-hover: #b93c0b;
+  --texto-3: #6e6b75; /* 5,2:1 sobre blanco */
+  --acento: #c2410c; /* texto blanco encima: 5,2:1 */
+  --acento-hover: #9a3412;
   --acento-texto: #ffffff;
   --acento-suave: #fde8dc;
   --barra: #16161a;
@@ -30,6 +31,7 @@
     --superficie: #1c1c20;
     --superficie-2: #26262b;
     --borde: #34343b;
+    --borde-control: #6b6a73; /* 3,2:1 sobre la superficie oscura */
     --texto: #f2f1f4;
     --texto-2: #b9b7bf;
     --texto-3: #8a8890;
@@ -103,7 +105,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pestanas button {
   background: none; border: 0; color: var(--barra-texto-2);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  height: var(--nav-alto); font-size: 11px; cursor: pointer;
+  height: var(--nav-alto); font-size: 12px; cursor: pointer;
 }
 .pestanas svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .pestanas button.activa { color: #ff8a47; }
@@ -145,13 +147,13 @@ main {
 .herramientas { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
 .herramientas input[type="search"] {
   width: 100%; padding: 12px 14px; border-radius: 12px;
-  border: 1px solid var(--borde); background: var(--superficie); font-size: 16px;
+  border: 1px solid var(--borde-control); background: var(--superficie); font-size: 16px;
 }
 .herramientas input[type="search"]:focus { outline: 2px solid var(--acento); outline-offset: 0; border-color: transparent; }
 .filtros { display: flex; flex-wrap: wrap; gap: 8px; }
 .filtros select {
   flex: 1 1 140px; min-width: 0; padding: 9px 10px; border-radius: 10px;
-  border: 1px solid var(--borde); background: var(--superficie);
+  border: 1px solid var(--borde-control); background: var(--superficie);
   font-size: 16px; /* en iPhone, menos de 16px hace zoom al tocar */
 }
 .conteo { color: var(--texto-2); font-size: 13px; margin: 6px 2px 12px; }
@@ -161,7 +163,7 @@ main {
 .fila-busqueda input[type="search"] { flex: 1; min-width: 0; }
 .btn-filtros {
   flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px;
-  border-radius: 12px; border: 1px solid var(--borde); background: var(--superficie);
+  border-radius: 12px; border: 1px solid var(--borde-control); background: var(--superficie);
   font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .btn-filtros svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
@@ -179,7 +181,7 @@ main {
 .filtros-activos { display: flex; flex-wrap: wrap; gap: 6px; }
 .filtros-activos:empty { display: none; }
 .filtro-activo {
-  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 8px 0 11px;
+  display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 10px 0 12px;
   border-radius: 999px; border: 1px solid var(--acento); background: var(--acento-suave);
   font-size: 13px; font-weight: 600; cursor: pointer;
 }
@@ -214,7 +216,7 @@ main {
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .foto img { width: 100%; height: 100%; object-fit: contain; }
-.foto .sin-foto { color: #9b98a1; font-size: 12px; text-align: center; padding: 8px; }
+.foto .sin-foto { color: #5f5c66; /* el fondo de las fotos es claro en ambos modos */ font-size: 12px; text-align: center; padding: 8px; }
 .foto .sin-foto svg { display: block; margin: 0 auto 4px; width: 36px; height: 36px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .info { padding: 9px 10px 46px; }
 .info h3 { margin: 0 0 3px; font-size: 14px; line-height: 1.25; font-weight: 650; overflow-wrap: anywhere; }
@@ -227,10 +229,15 @@ main {
   display: flex; justify-content: space-between; align-items: center;
 }
 .btn-redondo {
-  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--borde);
+  position: relative;
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--borde-control);
   background: var(--superficie); display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; padding: 0;
+  cursor: pointer; padding: 0; transition: transform .12s ease;
 }
+/* Se ven de 36 px, pero se pueden tocar en 44 × 44 px (mínimo recomendado para el dedo) */
+.btn-redondo::after, .cerrar::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; }
+.btn-redondo::after { inset: -5px; } /* el borde de 1 px no cuenta: 34 + 2 × 5 = 44 */
+.btn-redondo:active, .boton:active, .btn-filtros:active { transform: scale(.92); }
 .btn-redondo svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .btn-deseo { color: var(--texto-3); }
 .btn-deseo.activo { color: var(--deseo); border-color: var(--deseo); }
@@ -246,8 +253,8 @@ main {
   display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none;
 }
 .chip {
-  display: inline-block; font-size: 10.5px; font-weight: 650; line-height: 1.5;
-  border-radius: 6px; padding: 1px 6px; letter-spacing: .2px; white-space: nowrap;
+  display: inline-block; font-size: 12px; font-weight: 650; line-height: 1.45;
+  border-radius: 6px; padding: 1px 6px; white-space: nowrap;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
 }
 .chips-ficha .chip { white-space: normal; }
@@ -282,6 +289,7 @@ main {
 .centinela { height: 40px; }
 .vacio { text-align: center; color: var(--texto-2); padding: 40px 16px; }
 .enlace { all: unset; color: var(--acento); cursor: pointer; text-decoration: underline; }
+.enlace:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; border-radius: 4px; }
 
 /* ---------- Botones y campos ---------- */
 .boton {
@@ -302,7 +310,7 @@ main {
 .campo { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .campo > span { font-size: 12.5px; color: var(--texto-2); font-weight: 600; }
 .campo input, .campo select, .campo textarea {
-  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--borde);
+  width: 100%; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--borde-control);
   background: var(--superficie); font-size: 16px;
 }
 .campo textarea { min-height: 70px; resize: vertical; }
@@ -334,7 +342,8 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 .dialogo-cabecera h2 { margin: 0; font-size: 18px; line-height: 1.25; }
 .dialogo-cabecera .sub { margin: 3px 0 0; color: var(--texto-2); font-size: 13px; }
 .cerrar {
-  flex: none; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--superficie-2);
+  position: relative;
+  flex: none; width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--superficie-2);
   font-size: 22px; line-height: 1; cursor: pointer;
 }
 .formulario { padding: 0 16px 16px; }
@@ -363,13 +372,13 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 .diapo img { width: 100%; height: 100%; object-fit: contain; }
 .diapo figcaption, .visor-diapo figcaption {
   position: absolute; left: 8px; bottom: 8px; background: rgba(22, 22, 26, .72); color: #fff;
-  font-size: 11.5px; padding: 2px 8px; border-radius: 6px; pointer-events: none;
+  font-size: 12px; padding: 2px 8px; border-radius: 6px; pointer-events: none;
 }
 .puntos { display: flex; justify-content: center; margin-top: 4px; }
-.puntos button { width: 28px; height: 22px; border: 0; padding: 0; background: none; cursor: pointer; }
+.puntos button { width: 32px; height: 32px; border: 0; padding: 0; background: none; cursor: pointer; }
 .puntos button::before {
   content: ""; display: block; margin: auto; width: 8px; height: 8px; border-radius: 4px;
-  background: var(--borde); transition: width .2s, background .2s;
+  background: var(--borde-control); transition: width .2s, background .2s;
 }
 .puntos button.activa::before { width: 20px; background: var(--acento); }
 
@@ -405,7 +414,7 @@ dialog::backdrop { background: rgba(10, 10, 12, .55); }
 .pasos { list-style: none; padding: 0; margin: 18px 0; text-align: left; display: grid; gap: 12px; }
 .pasos li { display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; }
 .pasos .num {
-  flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--acento-suave); color: var(--acento);
+  flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--acento-suave); color: var(--acento-hover);
   font-weight: 750; display: flex; align-items: center; justify-content: center; font-size: 13px;
 }
 .mini-mas {
@@ -460,7 +469,7 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 .registro legend { font-weight: 700; padding: 0 6px; }
 .contador { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .contador button {
-  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--borde);
+  width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--borde-control);
   background: var(--superficie-2); font-size: 20px; cursor: pointer;
 }
 .contador output { min-width: 34px; text-align: center; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -487,8 +496,15 @@ dialog[open]::backdrop { animation: fundido .2s ease-out; }
 
 .progresos { display: flex; flex-direction: column; gap: 2px; }
 .progreso {
-  all: unset; display: grid; grid-template-columns: 7.5em 1fr auto; align-items: center; gap: 10px;
+  all: unset; display: grid; grid-template-columns: 12em 1fr auto; align-items: center; gap: 10px;
   padding: 7px 6px; border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+/* En el celular: nombre y cifra arriba, barra completa abajo (así no se cortan los nombres) */
+@media (max-width: 599px) {
+  .progreso { grid-template-columns: 1fr auto; grid-template-areas: "nombre cifra" "pista pista"; gap: 6px 10px; padding: 9px 6px; }
+  .progreso .nombre { grid-area: nombre; white-space: normal; }
+  .progreso .cifra { grid-area: cifra; min-width: 0; }
+  .progreso .pista { grid-area: pista; }
 }
 .progreso:hover, .progreso:focus-visible { background: var(--superficie-2); }
 .progreso .nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -198,6 +198,7 @@ async function sumarUno(id) {
   const antes = estado.coleccion.get(id) ? structuredClone(estado.coleccion.get(id)) : null;
   const reg = copiaRegistro(id);
   reg.cantidad += 1;
+  navigator.vibrate?.(12); // una vibración cortita en Android (el iPhone no lo permite)
   if (reg.cantidad === 1) {
     if (!reg.fecha) reg.fecha = hoyLocal();
     reg.deseo = false; // ya lo tienes: sale de la lista de deseos
