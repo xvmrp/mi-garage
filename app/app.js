@@ -3,6 +3,7 @@ import {
   ETIQUETAS, ESPECIALES, etiquetasDe, cumpleEspecial, esc, norm, textoSerie, numeroDe, celdaCSV,
   hayFiltros, filtrarCatalogo as filtrarLista, limpiarRegistro, debeReemplazar, diasDesde,
   mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion, claveSerie, resumenSerie,
+  enlacesPrecio, resumenValor,
 } from "./logica.js";
 
 // La publicación en GitHub reemplaza este valor por "<commit>-<AAAAMMDDhhmm>" (ver publicar.yml)
@@ -167,7 +168,7 @@ function nuevoRegistro(id) {
   const item = estado.porId.get(id);
   const ahora = new Date().toISOString();
   return {
-    id, cantidad: 0, deseo: false, condicion: "", fecha: "", precio: null, tienda: "", notas: "",
+    id, cantidad: 0, deseo: false, condicion: "", fecha: "", precio: null, valor: null, valorFecha: "", tienda: "", notas: "",
     tieneFoto: false, creado: ahora, actualizado: ahora, personalizado: !item, ref: item ? refDe(item) : {},
   };
 }
@@ -514,6 +515,7 @@ function renderColeccion() {
   if (orden === "nombre") regs.sort((a, b) => nombre(a).localeCompare(nombre(b), "es"));
   else if (orden === "anio") regs.sort((a, b) => (datosDe(b.id).y || 0) - (datosDe(a.id).y || 0) || nombre(a).localeCompare(nombre(b), "es"));
   else if (orden === "precio") regs.sort((a, b) => (b.precio || 0) - (a.precio || 0));
+  else if (orden === "valor") regs.sort((a, b) => (b.valor ?? -1) - (a.valor ?? -1));
   else regs.sort((a, b) => (b.creado || "").localeCompare(a.creado || ""));
   grillaColeccion.mostrar(regs.map((r) => r.id));
   actualizarConteos();
@@ -563,6 +565,39 @@ function filaProgreso(nombre, tengo, total, filtro) {
   </button>`;
 }
 
+/** Resumen: cuánto vale la colección según el valor de mercado que anotaste en cada auto. */
+function panelValorHTML() {
+  const v = resumenValor([...estado.coleccion.values()]);
+  if (!v.conValor) {
+    return `<div class="panel">
+      <h2>Valor de mercado</h2>
+      <p class="ayuda">Anota en la ficha de cada auto a cuánto se vende (ahí tienes botones para mirarlo en eBay y
+        Mercado Libre) y aquí verás cuánto vale tu colección.</p>
+    </div>`;
+  }
+  const cuantos = v.conValor === v.modelos
+    ? `tus ${plural(v.modelos, "modelo", "modelos")}`
+    : `${fmtNum(v.conValor)} de tus ${plural(v.modelos, "modelo", "modelos")}`;
+  const diferencia = v.valenHoy - v.pagado;
+  const comparacion = v.comparables
+    ? `<p class="comparacion">En los que anotaste lo que pagaste: pagaste ${esc(fmtPrecio(v.pagado))} y hoy valen
+        ${esc(fmtPrecio(v.valenHoy))} (${diferencia >= 0 ? "+" : "−"}${esc(fmtPrecio(Math.abs(diferencia)))}).</p>`
+    : "";
+  return `<div class="panel panel-valor">
+    <h2>Valor de mercado</h2>
+    <p class="valor-total">${esc(fmtPrecio(v.valor))}</p>
+    <p class="ayuda">Según el valor que anotaste en ${cuantos}.</p>
+    ${comparacion}
+    <h3>Los que más valen</h3>
+    <ol class="mas-valiosos">${v.masValiosos.map((r) => {
+      const d = datosDe(r.id);
+      return `<li><button type="button" data-abrir-ficha="${esc(r.id)}">
+        <span class="nombre">${esc(d.n)}${d.y ? ` <span class="anio">${esc(d.y)}</span>` : ""}</span>
+        <span class="cifra">${esc(fmtPrecio(r.valor))}</span></button></li>`;
+    }).join("")}</ol>
+  </div>`;
+}
+
 function renderEstadisticas() {
   const { modelos, unidades, gasto, deseos } = resumenColeccion();
   const porLinea = new Map(), porAnio = new Map(), porEspecial = new Map();
@@ -589,6 +624,7 @@ function renderEstadisticas() {
       <div class="tile"><div class="valor">${gasto ? esc(fmtPrecio(gasto)) : "—"}</div><div class="etq">Invertido</div></div>
       <div class="tile"><div class="valor">${fmtNum(deseos)}</div><div class="etq">En lista de deseos</div></div>
     </div>
+    ${modelos ? panelValorHTML() : ""}
     <div class="panel">
       <h2>Avance por línea</h2>
       <p class="ayuda">Modelos distintos que tienes del catálogo. Toca una línea para verla.</p>
@@ -657,6 +693,27 @@ function serieFichaHTML(s) {
   </div>`;
 }
 
+/**
+ * En "Mi registro": el valor de mercado que anotas, con enlaces para averiguarlo.
+ * eBay muestra ventas cerradas (lo que de verdad se pagó); Mercado Libre, lo que piden en Chile.
+ */
+function valorMercadoHTML(d, r) {
+  const { ebay, mercadoLibre } = enlacesPrecio(d);
+  const revisado = r.valorFecha
+    ? ` Lo anotaste el ${new Date(`${r.valorFecha}T12:00`).toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" })}.`
+    : "";
+  return `<div class="valor-mercado">
+    <label class="campo"><span>Valor de mercado por unidad</span>
+      <input type="number" name="valor" min="0" step="any" inputmode="decimal" value="${r.valor ?? ""}" aria-describedby="ayuda-valor"></label>
+    <p class="ayuda-campo" id="ayuda-valor">A cuánto se vende hoy entre coleccionistas. En eBay ves lo que se pagó, en dólares;
+      en Mercado Libre, lo que piden en Chile.${esc(revisado)}</p>
+    <div class="fila-botones">
+      <a class="boton secundario" href="${esc(ebay)}" target="_blank" rel="noopener noreferrer">Vendidos en eBay</a>
+      <a class="boton secundario" href="${esc(mercadoLibre)}" target="_blank" rel="noopener noreferrer">Mercado Libre</a>
+    </div>
+  </div>`;
+}
+
 async function abrirFicha(id) {
   const d = datosDe(id);
   const existe = estado.coleccion.has(id);
@@ -722,6 +779,7 @@ async function abrirFicha(id) {
             <label class="campo"><span>Fecha de compra</span><input type="date" name="fecha" value="${esc(r.fecha)}"></label>
             <label class="campo"><span>Precio por unidad</span><input type="number" name="precio" min="0" step="any" inputmode="decimal" value="${r.precio ?? ""}"></label>
           </div>
+          ${valorMercadoHTML(d, r)}
           <label class="campo"><span>Dónde lo compré</span><input name="tienda" maxlength="80" list="lista-tiendas" value="${esc(r.tienda)}"></label>
           <datalist id="lista-tiendas">${tiendas.map((t) => `<option value="${esc(t)}">`).join("")}</datalist>
           <label class="campo"><span>Notas</span><textarea name="notas" maxlength="1000">${esc(r.notas)}</textarea></label>
@@ -799,12 +857,17 @@ async function abrirFicha(id) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const precio = form.precio.value.trim();
+    const valorTxt = form.valor.value.trim();
+    const valor = valorTxt === "" ? null : Math.max(0, Number(valorTxt));
     const nuevo = {
       ...r,
       cantidad,
       condicion: form.condicion.value || "",
       fecha: form.fecha.value,
       precio: precio === "" ? null : Math.max(0, Number(precio)),
+      valor,
+      // la fecha dice qué tan al día está el valor; solo cambia cuando cambia el valor
+      valorFecha: valor === null ? "" : valor === r.valor ? r.valorFecha || hoyLocal() : hoyLocal(),
       tienda: form.tienda.value.trim(),
       notas: form.notas.value.trim(),
       deseo: form.deseo.checked,
@@ -993,11 +1056,13 @@ async function importarRespaldo(archivo) {
 
 function exportarCSV() {
   const columnas = ["Nombre", "Año", "Línea", "Serie", "Nº serie", "Nº colección", "Toy #", "Color", "Cantidad",
-    "Estado", "Fecha compra", "Precio unidad", "Dónde", "Notas", "Lista de deseos", "Especial"];
+    "Estado", "Fecha compra", "Precio unidad", "Valor de mercado unidad", "Valor anotado el", "Dónde", "Notas",
+    "Lista de deseos", "Especial"];
   const filas = [...estado.coleccion.values()].map((r) => {
     const d = datosDe(r.id);
     return [d.n, d.y, d.l, d.s || d.sec, d.sn, d.c, d.t, d.co, r.cantidad,
-      { blister: "En blíster", suelto: "Suelto" }[r.condicion] || "", r.fecha, r.precio ?? "", r.tienda, r.notas,
+      { blister: "En blíster", suelto: "Suelto" }[r.condicion] || "", r.fecha, r.precio ?? "", r.valor ?? "",
+      r.valorFecha || "", r.tienda, r.notas,
       r.deseo ? "Sí" : "", etiquetasDe(d).map((e) => ETIQUETAS[e].largo).join(", ")];
   });
   const csv = "﻿" + [columnas, ...filas].map((f) => f.map(celdaCSV).join(";")).join("\r\n");
@@ -1124,6 +1189,8 @@ function conectarEventos() {
       renderEstadisticas();
       return;
     }
+    const auto = e.target.closest("[data-abrir-ficha]");
+    if (auto) { abrirFicha(auto.dataset.abrirFicha); return; }
     const fila = e.target.closest(".progreso");
     if (fila) irAlCatalogo({ linea: fila.dataset.linea, anio: fila.dataset.anio, especial: fila.dataset.especial });
   });

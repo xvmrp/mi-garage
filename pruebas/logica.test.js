@@ -5,6 +5,7 @@ import {
   esc, norm, textoSerie, numeroDe, celdaCSV, hayFiltros, filtrarCatalogo, limpiarRegistro,
   debeReemplazar, diasDesde, mensajeRecordatorio, calcularHueco, escalaTexto, leerVersion,
   cumpleEspecial, etiquetasDe, posicionEnSerie, claveSerie, resumenSerie,
+  busquedaPrecio, enlacesPrecio, resumenValor,
 } from "../app/logica.js";
 
 const DIA = 86400000;
@@ -113,9 +114,40 @@ test("resumen de la serie en la ficha", () => {
   assert.equal(resumenSerie(sinNumero(109)[0], sinNumero(109), new Map()), null);
 });
 
+test("búsqueda de precios en eBay y Mercado Libre", () => {
+  const th = { n: "Sweet Driver (2nd Color)", y: 2026, l: "Mainline", e: ["th", "nuevo"] };
+  assert.equal(busquedaPrecio(th), "Hot Wheels Sweet Driver 2026 Treasure Hunt");
+  assert.equal(busquedaPrecio(th, { corta: true }), "Hot Wheels Sweet Driver");
+  const sth = { n: "'16 Lamborghini Centenario Roadster", y: 2026, l: "Car Culture", e: ["sth"] };
+  assert.equal(busquedaPrecio(sth), "Hot Wheels '16 Lamborghini Centenario Roadster 2026 Car Culture Super Treasure Hunt");
+  assert.equal(busquedaPrecio({ n: "Hot Wheels Let's Race Racer", y: 2024 }), "Hot Wheels Let's Race Racer 2024", "sin repetir la marca");
+  const { ebay, mercadoLibre } = enlacesPrecio(sth);
+  assert.match(ebay, /^https:\/\/www\.ebay\.com\/sch\/i\.html\?_nkw=Hot%20Wheels%20'16%20Lamborghini.*&LH_Sold=1&LH_Complete=1$/);
+  assert.equal(mercadoLibre, "https://listado.mercadolibre.cl/hot-wheels-16-lamborghini-centenario-roadster-super-treasure-hunt");
+  assert.equal(enlacesPrecio({ n: "Ferrári Ñandú" }).mercadoLibre, "https://listado.mercadolibre.cl/hot-wheels-ferrari-nandu");
+});
+
+test("valor de la colección", () => {
+  const regs = [
+    { id: "a", cantidad: 2, precio: 2000, valor: 5000 },
+    { id: "b", cantidad: 1, precio: null, valor: 30000 },
+    { id: "c", cantidad: 1, precio: 3000, valor: null },
+    { id: "d", cantidad: 0, deseo: true, valor: 90000 }, // de la lista de deseos: no cuenta
+  ];
+  const r = resumenValor(regs);
+  assert.equal(r.modelos, 3);
+  assert.equal(r.conValor, 2);
+  assert.equal(r.valor, 40000);
+  assert.equal(r.comparables, 1);
+  assert.equal(r.pagado, 4000);
+  assert.equal(r.valenHoy, 10000);
+  assert.deepEqual(r.masValiosos.map((x) => x.id), ["b", "a"]);
+  assert.equal(resumenValor([]).valor, 0);
+});
+
 test("un respaldo con datos malos queda limpio", () => {
   const r = limpiarRegistro({
-    id: 123, cantidad: -3, deseo: "sí", condicion: "roto", fecha: "ayer", precio: -10,
+    id: 123, cantidad: -3, deseo: "sí", condicion: "roto", fecha: "ayer", precio: -10, valor: "mucho", valorFecha: "hoy",
     tienda: "x".repeat(200), notas: "<script>", tieneFoto: true, creado: 5,
     ref: { n: "Deora", y: "1968", w: 7 },
   }, "2026-11-18T00:00:00.000Z");
@@ -125,6 +157,9 @@ test("un respaldo con datos malos queda limpio", () => {
   assert.equal(r.condicion, "");
   assert.equal(r.fecha, "");
   assert.equal(r.precio, null);
+  assert.equal(r.valor, null);
+  assert.equal(r.valorFecha, "");
+  assert.equal(limpiarRegistro({ id: "x", valor: 4500, valorFecha: "2026-11-26" }).valor, 4500);
   assert.equal(r.tienda.length, 80);
   assert.equal(r.notas, "<script>"); // se guarda tal cual: al mostrarlo siempre pasa por esc()
   assert.equal(r.tieneFoto, false); // la foto solo cuenta si viene en el respaldo

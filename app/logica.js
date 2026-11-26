@@ -92,6 +92,52 @@ export function resumenSerie(d, miembros, coleccion) {
   };
 }
 
+// ------------------------------------------------------------------ precios
+
+/**
+ * Texto para buscar el auto en tiendas: "Hot Wheels Sweet Driver 2026 Treasure Hunt".
+ * Sin el "(2nd Color)" del nombre, que los vendedores no escriben. `corta`: sin año, línea ni
+ * Treasure Hunt normal, para Mercado Libre, donde los títulos traen menos datos.
+ */
+export function busquedaPrecio(d, { corta = false } = {}) {
+  const nombre = String(d.n || "").replace(/\s*\([^)]*colou?r\)\s*$/i, "").trim();
+  const e = d.e || [];
+  return [
+    !norm(nombre).includes("hot wheels") && "Hot Wheels",
+    nombre,
+    !corta && d.y,
+    !corta && d.l && d.l !== "Mainline" && d.l,
+    e.includes("sth") ? "Super Treasure Hunt" : !corta && e.includes("th") && "Treasure Hunt",
+  ].filter(Boolean).join(" ");
+}
+
+/** Enlaces para ver a cuánto se vende: ventas cerradas de eBay y avisos de Mercado Libre Chile. */
+export function enlacesPrecio(d) {
+  const ebay = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(busquedaPrecio(d))}&LH_Sold=1&LH_Complete=1`;
+  const ruta = norm(busquedaPrecio(d, { corta: true })).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return { ebay, mercadoLibre: `https://listado.mercadolibre.cl/${ruta}` };
+}
+
+/**
+ * Cuánto vale la colección según el valor de mercado que anotaste en cada auto (por unidad).
+ * `comparables`: los autos con valor y precio de compra, para decir si ganaste o perdiste.
+ */
+export function resumenValor(registros) {
+  const tengo = registros.filter((r) => r.cantidad > 0);
+  const conValor = tengo.filter((r) => Number.isFinite(r.valor));
+  const suma = (lista, campo) => lista.reduce((n, r) => n + r[campo] * r.cantidad, 0);
+  const comparables = conValor.filter((r) => Number.isFinite(r.precio));
+  return {
+    modelos: tengo.length,
+    conValor: conValor.length,
+    valor: suma(conValor, "valor"),
+    comparables: comparables.length,
+    pagado: suma(comparables, "precio"),
+    valenHoy: suma(comparables, "valor"),
+    masValiosos: [...conValor].sort((a, b) => b.valor - a.valor).slice(0, 3),
+  };
+}
+
 /**
  * Filtra y ordena el catálogo. `f` = { q, anio, linea, est, orden, especial, serie };
  * `serie` = { s, y } o vacío. `coleccion` = Map id -> registro. Devuelve la lista y cuántos
@@ -146,6 +192,8 @@ export function limpiarRegistro(r, ahora = new Date().toISOString()) {
     condicion: ["blister", "suelto"].includes(r.condicion) ? r.condicion : "",
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(r.fecha) ? r.fecha : "",
     precio: Number.isFinite(r.precio) && r.precio >= 0 ? r.precio : null,
+    valor: Number.isFinite(r.valor) && r.valor >= 0 ? r.valor : null,
+    valorFecha: /^\d{4}-\d{2}-\d{2}$/.test(r.valorFecha) ? r.valorFecha : "",
     tienda: texto(r.tienda, 80),
     notas: texto(r.notas, 1000),
     tieneFoto: false,

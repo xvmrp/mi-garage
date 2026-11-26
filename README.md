@@ -10,6 +10,9 @@ se puede instalar como app y funciona sin internet.
   Puedes buscar por nombre, Toy # (el código que trae el blíster por detrás), serie o color.
   En la ficha de un auto ves cuántos tienes de su serie (p. ej. "Sweet Rides 2026": 1 de 5) y
   **Ver toda la serie** te la muestra entera, en orden.
+- **Valor de mercado**: en la ficha anotas a cuánto se vende cada auto, con botones que abren las
+  ventas cerradas de eBay y los avisos de Mercado Libre Chile ya buscados. En Resumen ves cuánto vale
+  tu colección, cuánto pagaste por esos mismos autos y cuáles valen más.
 - **Cacería**: insignias y filtros para **Treasure Hunts**, **Super Treasure Hunts**, **modelos nuevos**
   del año y **exclusivos de tienda** (Target, Kroger, Dollar General, Dollar Tree).
 - **Mi colección**: toca **+** para agregar un auto. En su ficha anotas cantidad, si está en blíster
